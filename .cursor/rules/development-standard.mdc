@@ -1,0 +1,1385 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 开发规范
+
+本规范定义了项目开发中的技术选型、代码风格和命名规范，以确保代码质量和一致性。
+
+
+## 技术栈
+始终使用最新稳定的 TypeScript、JavaScript、React、Node.js、Next.js App Router、Shadcn UI、Tailwind CSS 版本，并且熟悉最新特性和最佳实践。提供准确、事实性、深思熟虑的答案。
+
+- **核心框架**: @React
+- **类型系统**: @TypeScript
+- **样式解决方案**: @Tailwind CSS + @shadcn/ui
+- **状态管理**: React Context API（小型应用）或 @Zustand（中大型应用）
+- **路由**: @React Router
+- **构建工具**: @Vite
+
+
+## React 开发规范
+
+### 组件定义
+
+- 使用函数组件和 Hooks，避免使用类组件
+- 使用 TypeScript 定义 Props 和 State 类型
+
+```tsx
+// ✅ 正确示例
+import { useState } from 'react';
+
+interface ButtonProps {
+  label: string;
+  onClick: () => void;
+  variant?: 'primary' | 'secondary';
+}
+
+export function Button({ label, onClick, variant = 'primary' }: ButtonProps) {
+  const [isHovered, setIsHovered] = useState(false);
+  
+  return (
+    <button 
+      className={`btn btn-${variant} ${isHovered ? 'hovered' : ''}`}
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {label}
+    </button>
+  );
+}
+
+// ❌ 错误示例
+export default function Button(props) {
+  // 未定义 props 类型
+  // 使用默认导出
+  // ...
+}
+```
+
+### Hooks 使用
+
+- 自定义 Hooks 名称必须以 `use` 开头
+- 遵循 Hooks 规则，不在条件语句中使用 Hooks
+- 复杂逻辑封装为自定义 Hooks
+
+```tsx
+// ✅ 正确示例
+function useWindowSize() {
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  
+  useEffect(() => {
+    // 实现逻辑
+  }, []);
+  
+  return size;
+}
+
+// ❌ 错误示例
+function getWindowSize() { // 不以 use 开头
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  // ...
+}
+```
+
+### 编程模式
+
+- 使用函数式和声明式编程模式，避免使用类
+- 优先使用迭代和模块化，避免代码重复
+- 使用描述性变量名和辅助动词（如 `isLoading`, `hasError`）
+
+```tsx
+// ✅ 正确示例 - 函数式编程
+const processUserData = (users: User[]) => 
+  users
+    .filter(user => user.isActive)
+    .map(user => ({ ...user, fullName: `${user.firstName} ${user.lastName}` }))
+    .sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+// ✅ 正确示例 - 描述性变量名
+const isLoading = false;
+const hasError = false;
+const shouldShowModal = true;
+
+// ❌ 错误示例 - 命令式编程
+function processUserData(users) {
+  let result = [];
+  for (let i = 0; i < users.length; i++) {
+    if (users[i].isActive) {
+      users[i].fullName = users[i].firstName + ' ' + users[i].lastName;
+      result.push(users[i]);
+    }
+  }
+  return result;
+}
+```
+
+
+## TypeScript 规范
+
+### 类型定义
+
+- 为所有变量、函数参数和返回值定义类型
+- **优先使用接口（`interface`）定义对象结构**，类型别名（`type`）用于联合类型或工具类型
+- **禁止使用 `enum`，使用 maps 的方式替代**,
+- 使用 TypeScript 工具类型（如 `Partial<T>`, `Readonly<T>`, `Pick<T, K>`）
+- 使用函数组件与 TypeScript 接口结合
+
+```tsx
+// ✅ 正确示例 - 接口优先
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'user';
+}
+
+interface UserCardProps {
+  user: User;
+  onEdit?: (user: User) => void;
+  className?: string;
+}
+
+// ✅ 正确示例 - 函数组件与接口结合
+function UserCard({ user, onEdit, className }: UserCardProps) {
+  // 组件实现
+}
+
+// ✅ 正确示例 - 类型别名用于联合类型
+type UserUpdateParams = Partial<Omit<User, 'id'>>;
+type Theme = 'light' | 'dark' | 'auto';
+
+function updateUser(id: string, params: UserUpdateParams): Promise<User> {
+  // 实现逻辑
+}
+
+// ❌ 错误示例 - 对象结构使用 type
+type User = {  // 应使用 interface
+  id: string;
+  name: string;
+}
+
+// ❌ 错误示例 - 未定义类型
+function updateUser(id, params) {
+  // 未定义类型
+}
+```
+
+### 导出类型
+
+- 类型定义文件使用 `.d.ts` 扩展名
+- 共享类型定义放在 `types` 目录下
+- 组件特定类型与组件放在同一文件中
+
+```tsx
+// ✅ 正确示例 - types/api.d.ts
+export interface ApiResponse<T> {
+  data: T;
+  status: number;
+  message: string;
+}
+
+// ✅ 正确示例 - 组件中的类型
+interface ButtonProps {
+  // ...
+}
+
+export function Button(props: ButtonProps) {
+  // ...
+}
+```
+
+## 样式规范
+
+### Tailwind CSS
+
+- 优先使用 Tailwind 原子类
+- 复杂组件使用 `@apply` 指令组合样式
+- **严格遵循移动优先的响应式设计原则**
+- 实现响应式设计时使用 Tailwind CSS 的断点系统
+
+```tsx
+// ✅ 正确示例 - 移动优先响应式设计
+<div className="
+  flex flex-col gap-4 p-4
+  sm:gap-6 sm:p-6
+  md:flex-row md:gap-8 md:p-8
+  lg:gap-12 lg:p-12
+  text-gray-800 dark:text-gray-200
+">
+  <div className="
+    w-full
+    md:w-1/3
+    lg:w-1/4
+  ">
+    {/* 侧边栏内容 */}
+  </div>
+  <div className="
+    w-full
+    md:w-2/3
+    lg:w-3/4
+  ">
+    {/* 主要内容 */}
+  </div>
+</div>
+
+// ❌ 错误示例 - 混合使用内联样式和 Tailwind
+<div className="flex" style={{ padding: '1rem', gap: '0.5rem' }}>
+  {/* 内容 */}
+</div>
+
+// ❌ 错误示例 - 桌面优先设计
+<div className="
+  flex-row lg:flex-col  // 错误：应该是移动优先
+  p-8 sm:p-4           // 错误：应该从小到大
+">
+```
+
+### shadcn/ui
+
+- 使用 shadcn/ui 组件库作为 UI 基础
+- 遵循组件文档，避免过度自定义
+- 使用 Tailwind 对组件进行微调
+
+```tsx
+// ✅ 正确示例
+import { Button } from "@/components/ui/button";
+
+function MyComponent() {
+  return (
+    <Button variant="outline" className="w-full md:w-auto">
+      点击我
+    </Button>
+  );
+}
+```
+
+### 主题和暗模式
+
+- 使用 Tailwind 的 `dark:` 前缀支持暗模式
+- 颜色使用 CSS 变量，避免硬编码颜色值
+- 遵循设计系统中定义的颜色和间距
+
+## 文件命名规范
+
+### 目录结构
+
+```
+src/
+├── components/        # 组件目录
+│   ├── ui/            # 基础 UI 组件
+│   ├── layout/        # 布局组件
+│   └── features/      # 功能组件
+├── hooks/             # 自定义 Hooks
+├── lib/               # 工具函数和库
+├── types/             # 类型定义
+├── pages/             # 页面组件
+└── styles/            # 全局样式
+```
+
+
+### 目录命名
+
+- **目录**: 使用小写字母加连字符（`kebab-case`）
+- 避免使用下划线或驼峰命名
+
+```
+// ✅ 正确示例
+components/auth-wizard/
+components/user-profile/
+hooks/use-local-storage/
+lib/api-client/
+
+// ❌ 错误示例
+components/AuthWizard/     // 应使用小写+连字符
+components/user_profile/   // 应使用连字符而非下划线
+hooks/useLocalStorage/     // 目录应使用小写+连字符
+```
+
+### 文件命名
+- **目录**: 使用小写字母加连字符（`kebab-case`）
+- 避免使用下划线或驼峰命名
+- **组件文件**: 使用 `kebab-case.tsx`，如 `button.tsx`, `user-profile.tsx`
+- **Hooks 文件**: 使用 `kebab-case.ts`，如 `use-window-size.ts`, `use-auth.ts`
+- **工具函数**: 使用 `kebab-case.ts`，如 `format-date.ts`, `api-client.ts`
+- **类型定义**: 使用 `kebab-case.d.ts`，如 `api-types.d.ts`
+- **样式文件**: 使用 `kebab-case.css`，如 `global-styles.css`
+- **测试文件**: 使用 `[name].test.tsx` 或 `[name].spec.tsx`
+
+## 变量命名规范
+
+> **核心原则**：好的命名是代码自文档化的基础。名称应该清晰表达意图，避免歧义，遵循一致的风格。
+
+### 基础命名规范
+
+遵循以下命名约定，确保代码风格的一致性：
+
+| 类型 | 命名风格 | 示例 | 说明 |
+|------|----------|------|------|
+| 变量、函数 | `camelCase` | `userName`, `fetchData()` | 首字母小写，后续单词首字母大写 |
+| 类、组件 | `PascalCase` | `UserCard`, `DataService` | 每个单词首字母大写 |
+| 常量 | `UPPER_SNAKE_CASE` | `API_BASE_URL`, `MAX_RETRY_COUNT` | 全大写，单词间用下划线 |
+| 接口 | `PascalCase` | `UserData`, `ApiResponse` | 避免 `I` 前缀 |
+| 类型别名 | `PascalCase` | `ButtonVariant`, `ThemeMode` | 同接口规范 |
+| 枚举 | `PascalCase` | `UserRole`, `OrderStatus` | 枚举值使用 `PascalCase` |
+
+```tsx
+// ✅ 正确示例 - 基础命名规范
+const userName = 'Alice';
+const isUserLoggedIn = false;
+const API_BASE_URL = 'https://api.example.com';
+const MAX_RETRY_ATTEMPTS = 3;
+
+function calculateTotalPrice(items: CartItem[]): number {
+  return items.reduce((sum, item) => sum + item.price, 0);
+}
+
+class UserService {
+  private apiClient: ApiClient;
+}
+
+interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+}
+
+type ButtonSize = 'small' | 'medium' | 'large';
+
+enum UserRole {
+  Admin = 'admin',
+  User = 'user',
+  Guest = 'guest'
+}
+
+// ❌ 错误示例 - 不规范的命名
+const UserName = 'Alice';           // 变量应使用 camelCase
+const apibaseurl = 'https://...';   // 常量应使用 UPPER_SNAKE_CASE
+function CalculateTotal() { }       // 函数应使用 camelCase
+class userService { }               // 类应使用 PascalCase
+interface IUser { }                 // 不要使用 I 前缀
+type buttonsize = 'small';          // 类型应使用 PascalCase
+```
+
+### 语义化命名原则
+
+**核心思想**：名称应该表达"做什么"而不是"怎么做"，让代码具有自解释性。
+
+#### 布尔值命名
+
+使用明确的前缀，让布尔值的含义一目了然：
+
+```tsx
+// ✅ 正确示例 - 布尔值命名
+const isLoading = false;           // 状态判断
+const hasPermission = true;        // 拥有某种能力
+const shouldShowModal = false;     // 是否应该执行
+const canEdit = true;              // 是否能够执行
+const willExpire = false;          // 将来会发生
+const didComplete = true;          // 已经完成
+
+// 更具体的业务场景
+const isEmailValid = validateEmail(email);
+const hasActiveSubscription = user.subscription?.status === 'active';
+const shouldAutoSave = isDirty && autoSaveEnabled;
+const canDeleteComment = user.id === comment.authorId || user.role === 'admin';
+
+// ❌ 错误示例 - 模糊的布尔值命名
+const loading = false;             // 应使用 isLoading
+const permission = true;           // 应使用 hasPermission
+const visible = false;             // 应使用 isVisible
+const enabled = true;              // 应使用 isEnabled
+```
+
+#### 函数命名
+
+函数名应该清晰描述其行为，通常以动词开头：
+
+```tsx
+// ✅ 正确示例 - 函数命名
+
+// CRUD 操作
+function fetchUserProfile(userId: string): Promise<UserProfile> { }
+function createNewPost(postData: PostData): Promise<Post> { }
+function updateUserSettings(userId: string, settings: UserSettings): Promise<void> { }
+function deleteComment(commentId: string): Promise<void> { }
+
+// 事件处理
+function handleSubmitForm(event: FormEvent): void { }
+function handleUserClick(userId: string): void { }
+function handleSearchInputChange(query: string): void { }
+function handleModalClose(): void { }
+
+// 数据处理
+function transformApiResponse(response: ApiResponse): UserData[] { }
+function validateUserInput(input: FormData): ValidationResult { }
+function formatCurrency(amount: number, locale: string): string { }
+function parseJsonSafely<T>(json: string): T | null { }
+
+// 判断和检查
+function isValidEmail(email: string): boolean { }
+function hasRequiredPermissions(user: User, action: string): boolean { }
+function checkDataIntegrity(data: unknown[]): boolean { }
+
+// ❌ 错误示例 - 模糊的函数命名
+function userData() { }            // 应使用 fetchUserData 或 getUserData
+function submit() { }              // 应使用 handleSubmit 或 submitForm
+function check() { }               // 应使用具体的 checkSomething
+function process() { }             // 应使用具体的处理动作
+```
+
+#### 组件和 Props 命名
+
+React 组件和 Props 的命名应该直观地反映其用途：
+
+```tsx
+// ✅ 正确示例 - 组件和 Props 命名
+
+// 组件命名
+function UserProfileCard({ user, onEdit }: UserProfileCardProps) { }
+function SearchInput({ placeholder, onSearch }: SearchInputProps) { }
+function LoadingSpinner({ size, color }: LoadingSpinnerProps) { }
+function ErrorBoundary({ children, fallback }: ErrorBoundaryProps) { }
+
+// Props 接口
+interface UserProfileCardProps {
+  user: User;
+  isEditable?: boolean;           // 布尔值使用 is/has/can 前缀
+  showAvatar?: boolean;
+  onEdit?: (user: User) => void;  // 事件处理使用 on 前缀
+  onDelete?: (userId: string) => void;
+  className?: string;             // 可选的样式类名
+}
+
+interface SearchInputProps {
+  placeholder?: string;
+  defaultValue?: string;
+  isDisabled?: boolean;
+  autoFocus?: boolean;
+  onSearch: (query: string) => void;
+  onClear?: () => void;
+}
+
+// ❌ 错误示例 - 不清晰的命名
+function Card({ data, fn }: CardProps) { }        // data 和 fn 过于模糊
+function Input({ ph, cb }: InputProps) { }        // 使用缩写
+interface Props {                                 // 接口名过于通用
+  disabled: boolean;                              // 应使用 isDisabled
+  submit: () => void;                             // 应使用 onSubmit
+}
+```
+
+
+### 特殊场景命名指导
+
+#### 自定义 Hooks 命名
+
+```tsx
+// ✅ 正确示例 - Hooks 命名
+function useLocalStorage<T>(key: string, initialValue: T) { }
+function useDebounce<T>(value: T, delay: number) { }
+function useWindowSize() { }
+function useApiData<T>(url: string) { }
+function useAuthState() { }
+function useShoppingCart() { }
+
+// 业务相关的 Hooks
+function useUserProfile(userId: string) { }
+function useOrderHistory(customerId: string) { }
+function useRealTimeNotifications() { }
+
+// ❌ 错误示例
+function localStorage() { }         // 应以 use 开头
+function getWindowSize() { }        // Hook 必须以 use 开头
+function userProfile() { }          // 缺少 use 前缀
+```
+
+#### API 和服务命名
+
+```tsx
+// ✅ 正确示例 - API 和服务命名
+
+// API 客户端
+class UserApiClient {
+  async fetchUserProfile(userId: string): Promise<UserProfile> { }
+  async updateUserProfile(userId: string, data: Partial<UserProfile>): Promise<void> { }
+}
+
+// 服务类
+class NotificationService {
+  sendEmail(to: string, subject: string, content: string): Promise<void> { }
+  sendPushNotification(userId: string, message: string): Promise<void> { }
+}
+
+// API 端点常量
+const API_ENDPOINTS = {
+  USERS: '/api/users',
+  POSTS: '/api/posts',
+  COMMENTS: '/api/comments',
+  AUTH_LOGIN: '/api/auth/login',
+  AUTH_LOGOUT: '/api/auth/logout',
+} as const;
+
+// API 响应类型
+interface GetUsersResponse {
+  users: User[];
+  pagination: PaginationInfo;
+}
+
+interface CreatePostRequest {
+  title: string;
+  content: string;
+  tags: string[];
+}
+```
+
+#### 状态管理命名
+
+```tsx
+// ✅ 正确示例 - 状态管理命名
+
+// Zustand Store
+interface UserStore {
+  currentUser: User | null;
+  isAuthenticated: boolean;
+  loginError: string | null;
+  
+  setCurrentUser: (user: User) => void;
+  clearCurrentUser: () => void;
+  updateUserProfile: (updates: Partial<User>) => void;
+}
+
+// React State
+function UserDashboard() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'name' | 'email' | 'createdAt'>('name');
+  
+  // 派生状态有明确的命名
+  const filteredUsers = users.filter(user => 
+    user.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  const selectedUser = users.find(user => user.id === selectedUserId);
+}
+```
+
+### 常见错误与最佳实践
+
+#### 避免的命名模式
+
+```tsx
+// ❌ 常见错误模式
+
+// 1. 使用缩写和简写
+const usr = getCurrentUser();           // 应使用 user
+const btn = document.querySelector();   // 应使用 button
+const calc = (a, b) => a + b;          // 应使用 calculate
+
+// 2. 无意义的数字后缀
+const data1 = fetchUsers();            // 应使用具体的名称
+const data2 = fetchPosts();            // 应使用具体的名称
+const temp1 = processData();           // 避免使用 temp
+
+// 3. 类型信息在变量名中
+const userArray = [user1, user2];      // 应使用 users
+const userObject = { name: 'John' };   // 应使用 user
+const isLoadingBoolean = false;        // 应使用 isLoading
+
+// 4. 过于简单或过于复杂
+const d = new Date();                  // 应使用 currentDate 或具体的含义
+const theCurrentlySelectedUserProfileDataFromTheServer = userData;  // 过于复杂
+
+// ✅ 改进后的命名
+const currentUser = getCurrentUser();
+const submitButton = document.querySelector('#submit');
+const calculateTotal = (a, b) => a + b;
+
+const users = fetchUsers();
+const posts = fetchPosts();
+const processedData = processData();
+
+const users = [user1, user2];
+const user = { name: 'John' };
+const isLoading = false;
+
+const currentDate = new Date();
+const selectedUserProfile = userData;
+```
+
+#### 重构命名的策略
+
+```tsx
+// ✅ 重构示例：从模糊到清晰
+
+// 重构前 - 模糊的命名
+function Component({ data, fn, flag }) {
+  const [state, setState] = useState(false);
+  const result = useMemo(() => data.filter(item => item.active), [data]);
+  
+  const handle = () => {
+    if (flag) {
+      fn(result);
+    }
+  };
+  
+  return <div onClick={handle}>{result.length}</div>;
+}
+
+// 重构后 - 清晰的命名
+function ActiveUserList({ users, onUsersSelect, shouldAutoSelect }: ActiveUserListProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const activeUsers = useMemo(() => 
+    users.filter(user => user.isActive), 
+    [users]
+  );
+  
+  const handleUserListClick = () => {
+    if (shouldAutoSelect) {
+      onUsersSelect(activeUsers);
+    }
+  };
+  
+  return (
+    <div onClick={handleUserListClick}>
+      活跃用户数量: {activeUsers.length}
+    </div>
+  );
+}
+
+interface ActiveUserListProps {
+  users: User[];
+  onUsersSelect: (users: User[]) => void;
+  shouldAutoSelect: boolean;
+}
+```
+
+### 命名技巧与约定
+
+#### 长度平衡原则
+
+```tsx
+// ✅ 适当的名称长度
+
+// 作用域小 - 可以使用较短的名称
+users.map(u => u.name);                    // 循环中的短名称可以接受
+const [isOpen, setIsOpen] = useState();    // 常见模式的简洁命名
+
+// 作用域大 - 使用描述性名称
+const authenticatedUserProfile = useAuthenticatedUser();  // 全局状态用描述性名称
+const handleSubmitUserRegistrationForm = () => { };      // 重要函数用完整描述
+
+// 中等作用域 - 平衡简洁和清晰
+const userProfiles = await fetchUserProfiles();
+const isEmailValidationEnabled = checkFeatureFlag('email-validation');
+```
+
+#### 一致性约定
+
+```tsx
+// ✅ 保持团队一致性
+
+// 统一的前缀模式
+const isLoading = false;           // 布尔状态统一使用 is/has/can/should
+const hasPermission = true;
+const canEdit = false;
+const shouldShowTip = true;
+
+// 统一的事件处理命名
+const handleClick = () => { };     // 用户交互统一使用 handle 前缀
+const handleSubmit = () => { };
+const handleInputChange = () => { };
+
+// 统一的 API 相关命名
+const fetchUsers = async () => { };        // 获取数据使用 fetch 前缀
+const createUser = async () => { };        // 创建使用 create
+const updateUser = async () => { };        // 更新使用 update
+const deleteUser = async () => { };        // 删除使用 delete
+
+// 统一的类型命名
+interface UserData { }             // 数据接口
+interface UserProps { }            // 组件 Props
+interface UserFormValues { }       // 表单值
+type UserRole = 'admin' | 'user';  // 联合类型
+```
+
+
+## 模块导出规范
+
+### 导出方式
+
+- **优先使用命名导出，特别是组件**，避免默认导出
+- 为复杂模块创建索引文件（`index.ts`）
+- 避免循环依赖
+
+```tsx
+// ✅ 正确示例 - 组件命名导出
+export interface ButtonProps {
+  // ...
+}
+
+export function Button(props: ButtonProps) {
+  // ...
+}
+
+// ✅ 正确示例 - index.ts
+export * from './Button';
+export * from './Input';
+export * from './Select';
+
+// ✅ 正确示例 - 多个命名导出
+export { Button } from './Button';
+export { Input } from './Input';
+export { type ButtonProps, type InputProps } from './types';
+
+// ❌ 错误示例 - 使用默认导出
+export default function Button() {
+  // ...
+}
+
+// ❌ 错误示例 - 混合导出
+export default Button;
+export { ButtonProps }; // 应该统一使用命名导出
+```
+
+## 性能优化规范
+
+### Suspense 和错误边界
+
+- 将客户端组件用 Suspense 包装并提供 fallback
+- 为异步组件提供加载状态
+
+```tsx
+// ✅ 正确示例
+function App() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <UserDashboard />
+    </Suspense>
+  );
+}
+
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center p-4">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+    </div>
+  );
+}
+```
+
+### 动态加载
+
+- 对非关键组件使用动态加载
+- 延迟加载重型组件
+
+```tsx
+// ✅ 正确示例 - 动态加载
+import { lazy, Suspense } from 'react';
+
+const HeavyChart = lazy(() => import('./HeavyChart'));
+
+function Dashboard() {
+  return (
+    <div>
+      <h1>仪表板</h1>
+      <Suspense fallback={<div>加载图表中...</div>}>
+        <HeavyChart />
+      </Suspense>
+    </div>
+  );
+}
+```
+
+### 内存优化
+
+- 正确清理 useEffect 中的副作用
+- 移除事件监听器和定时器
+- 避免内存泄漏
+
+```tsx
+// ✅ 正确示例 - 内存清理
+function WindowSizeTracker() {
+  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    function handleResize() {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    }
+
+    window.addEventListener('resize', handleResize);
+    
+    // 清理函数防止内存泄漏
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  return <div>{windowSize.width} x {windowSize.height}</div>;
+}
+
+// ✅ 正确示例 - 定时器清理
+function Timer() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCount(prev => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(timer); // 清理定时器
+  }, []);
+
+  return <div>计数: {count}</div>;
+}
+
+// ❌ 错误示例 - 未清理副作用
+function BadTimer() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    setInterval(() => { // 内存泄漏：未清理定时器
+      setCount(prev => prev + 1);
+    }, 1000);
+  }, []);
+
+  return <div>计数: {count}</div>;
+}
+```
+
+### 渲染优化
+
+- 最小化 `useEffect` 和 `useState` 的使用
+- 使用 React.memo 防止不必要的重新渲染
+- 合理使用 useMemo 和 useCallback
+- 实现虚拟化长列表
+
+```tsx
+// ✅ 正确示例 - React.memo 优化
+interface UserCardProps {
+  user: User;
+  onEdit: (user: User) => void;
+}
+
+const UserCard = React.memo(function UserCard({ user, onEdit }: UserCardProps) {
+  return (
+    <div className="card">
+      <h3>{user.name}</h3>
+      <button onClick={() => onEdit(user)}>编辑</button>
+    </div>
+  );
+});
+
+// ✅ 正确示例 - useMemo 和 useCallback 优化
+function UserList({ users, onUserEdit }: { users: User[]; onUserEdit: (user: User) => void }) {
+  // 缓存计算结果
+  const sortedUsers = useMemo(() => {
+    return users.sort((a, b) => a.name.localeCompare(b.name));
+  }, [users]);
+
+  // 缓存回调函数
+  const handleUserEdit = useCallback((user: User) => {
+    onUserEdit(user);
+  }, [onUserEdit]);
+
+  return (
+    <div>
+      {sortedUsers.map(user => (
+        <UserCard 
+          key={user.id} 
+          user={user} 
+          onEdit={handleUserEdit}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ❌ 错误示例 - 过度使用 useMemo
+function BadComponent({ value }: { value: string }) {
+  // 不必要的 useMemo
+  const uppercaseValue = useMemo(() => value.toUpperCase(), [value]);
+  
+  return <div>{uppercaseValue}</div>;
+}
+```
+
+
+### 网络性能优化
+
+- 实现请求去重和缓存
+- 控制并发请求数量
+- 使用合理的重试机制
+
+```tsx
+// ✅ 正确示例 - 请求去重
+const requestCache = new Map<string, Promise<any>>();
+
+function fetchWithDeduplication<T>(url: string): Promise<T> {
+  if (requestCache.has(url)) {
+    return requestCache.get(url)!;
+  }
+
+  const promise = fetch(url)
+    .then(response => response.json())
+    .finally(() => {
+      // 请求完成后清除缓存
+      requestCache.delete(url);
+    });
+
+  requestCache.set(url, promise);
+  return promise;
+}
+
+// ✅ 正确示例 - 并发控制
+class RequestQueue {
+  private queue: Array<() => Promise<any>> = [];
+  private running = 0;
+  private maxConcurrency = 3;
+
+  async add<T>(requestFn: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      this.queue.push(async () => {
+        try {
+          const result = await requestFn();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      });
+      this.process();
+    });
+  }
+
+  private async process() {
+    if (this.running >= this.maxConcurrency || this.queue.length === 0) {
+      return;
+    }
+
+    this.running++;
+    const requestFn = this.queue.shift()!;
+    
+    try {
+      await requestFn();
+    } finally {
+      this.running--;
+      this.process();
+    }
+  }
+}
+```
+
+### 缓存策略
+
+- 实现智能的缓存机制
+- 使用适当的缓存失效策略
+
+```tsx
+// ✅ 正确示例 - 带时效的缓存
+interface CacheItem<T> {
+  data: T;
+  timestamp: number;
+  ttl: number;
+}
+
+class TimedCache<T> {
+  private cache = new Map<string, CacheItem<T>>();
+
+  set(key: string, data: T, ttl: number = 5 * 60 * 1000): void {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl,
+    });
+  }
+
+  get(key: string): T | null {
+    const item = this.cache.get(key);
+    
+    if (!item) {
+      return null;
+    }
+
+    const isExpired = Date.now() - item.timestamp > item.ttl;
+    
+    if (isExpired) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    return item.data;
+  }
+}
+
+// ✅ 正确示例 - React Query 风格的缓存 Hook
+function useApiData<T>(url: string) {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const cacheKey = `api_${url}`;
+    const cached = cache.get(cacheKey);
+    
+    if (cached) {
+      setData(cached);
+      return;
+    }
+
+    setLoading(true);
+    fetch(url)
+      .then(response => response.json())
+      .then(result => {
+        setData(result);
+        cache.set(cacheKey, result, 5 * 60 * 1000); // 5分钟缓存
+      })
+      .catch(setError)
+      .finally(() => setLoading(false));
+  }, [url]);
+
+  return { data, loading, error };
+}
+```
+
+### 资源加载优化
+
+- 图片懒加载和优化
+- 字体预加载
+- 关键资源优先级
+
+```tsx
+// ✅ 正确示例 - 图片懒加载
+function LazyImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  const [imageSrc, setImageSrc] = useState<string>();
+  const [isLoaded, setIsLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setImageSrc(src);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (imgRef.current) {
+      observer.observe(imgRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [src]);
+
+  return (
+    <div className={`relative ${className}`}>
+      <img
+        ref={imgRef}
+        src={imageSrc}
+        alt={alt}
+        onLoad={() => setIsLoaded(true)}
+        className={`transition-opacity duration-300 ${
+          isLoaded ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+      {!isLoaded && imageSrc && (
+        <div className="absolute inset-0 bg-gray-200 animate-pulse" />
+      )}
+    </div>
+  );
+}
+
+// ✅ 正确示例 - 资源预加载
+function preloadImage(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve();
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+function usePreloadImages(imageUrls: string[]) {
+  useEffect(() => {
+    const preloadPromises = imageUrls.map(preloadImage);
+    Promise.all(preloadPromises).catch(console.error);
+  }, [imageUrls]);
+}
+```
+
+### 用户交互优化
+
+- 实现防抖和节流
+- 优化表单性能
+- 减少布局抖动
+
+```tsx
+// ✅ 正确示例 - 防抖 Hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+// ✅ 正确示例 - 搜索组件使用防抖
+function SearchInput({ onSearch }: { onSearch: (query: string) => void }) {
+  const [query, setQuery] = useState('');
+  const debouncedQuery = useDebounce(query, 300);
+
+  useEffect(() => {
+    if (debouncedQuery) {
+      onSearch(debouncedQuery);
+    }
+  }, [debouncedQuery, onSearch]);
+
+  return (
+    <input
+      type="text"
+      value={query}
+      onChange={(e) => setQuery(e.target.value)}
+      placeholder="搜索..."
+      className="w-full p-2 border rounded"
+    />
+  );
+}
+
+// ✅ 正确示例 - 节流 Hook
+function useThrottle<T extends (...args: any[]) => any>(
+  callback: T,
+  delay: number
+): T {
+  const lastRun = useRef(Date.now());
+
+  return useCallback(
+    ((...args) => {
+      if (Date.now() - lastRun.current >= delay) {
+        callback(...args);
+        lastRun.current = Date.now();
+      }
+    }) as T,
+    [callback, delay]
+  );
+}
+```
+
+### 性能监控和指标
+
+- 监控 Core Web Vitals
+- 实现性能预算
+- 收集真实用户性能数据
+
+```tsx
+// ✅ 正确示例 - 性能监控
+interface PerformanceMetrics {
+  fcp: number; // First Contentful Paint
+  lcp: number; // Largest Contentful Paint
+  cls: number; // Cumulative Layout Shift
+  fid: number; // First Input Delay
+}
+
+function usePerformanceMonitoring() {
+  useEffect(() => {
+    // 监控 LCP
+    new PerformanceObserver((list) => {
+      const entries = list.getEntries();
+      const lastEntry = entries[entries.length - 1];
+      console.log('LCP:', lastEntry.startTime);
+    }).observe({ entryTypes: ['largest-contentful-paint'] });
+
+    // 监控 FID
+    new PerformanceObserver((list) => {
+      const entries = list.getEntries();
+      entries.forEach((entry) => {
+        console.log('FID:', entry.processingStart - entry.startTime);
+      });
+    }).observe({ entryTypes: ['first-input'] });
+
+    // 监控 CLS
+    new PerformanceObserver((list) => {
+      let clsValue = 0;
+      list.getEntries().forEach((entry) => {
+        if (!entry.hadRecentInput) {
+          clsValue += entry.value;
+        }
+      });
+      console.log('CLS:', clsValue);
+    }).observe({ entryTypes: ['layout-shift'] });
+  }, []);
+}
+
+// ✅ 正确示例 - 性能预算检查
+function checkPerformanceBudget() {
+  const budget = {
+    maxBundleSize: 250 * 1024, // 250KB
+    maxLoadTime: 3000, // 3秒
+    maxImages: 20,
+  };
+
+  if ('performance' in window) {
+    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+    const loadTime = navigation.loadEventEnd - navigation.fetchStart;
+    
+    if (loadTime > budget.maxLoadTime) {
+      console.warn(`页面加载时间超过预算: ${loadTime}ms > ${budget.maxLoadTime}ms`);
+    }
+  }
+}
+```
+
+### Bundle 和构建优化
+
+- 实现有效的代码分割
+- 优化依赖和 Tree-shaking
+- 分析和优化包体积
+
+```tsx
+// ✅ 正确示例 - 路由级代码分割
+import { lazy } from 'react';
+import { Routes, Route } from 'react-router-dom';
+
+// 按路由分割代码
+const Home = lazy(() => import('./pages/Home'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Settings = lazy(() => import('./pages/Settings'));
+
+function App() {
+  return (
+    <Suspense fallback={<div>加载中...</div>}>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/settings" element={<Settings />} />
+      </Routes>
+    </Suspense>
+  );
+}
+
+// ✅ 正确示例 - 按需导入工具库
+// 好的做法：只导入需要的函数
+import { debounce, throttle } from 'lodash-es';
+
+// ❌ 错误示例：导入整个库
+import _ from 'lodash'; // 这会导入整个 lodash 库
+
+// ✅ 正确示例 - 动态导入大型依赖
+async function loadChart() {
+  const { Chart } = await import('chart.js');
+  return Chart;
+}
+
+function useChart() {
+  const [Chart, setChart] = useState<any>(null);
+
+  useEffect(() => {
+    loadChart().then(setChart);
+  }, []);
+
+  return Chart;
+}
+```
+
+## 代码质量检查清单
+
+### 代码示例可执行性
+
+在文档和注释中的代码示例必须：
+
+1. **语法正确**: 确保所有代码示例都有正确的语法
+2. **导入完整**: 包含所有必要的导入语句
+3. **类型准确**: TypeScript 代码示例必须类型正确
+4. **可独立运行**: 示例代码应该能够在最小环境中运行
+
+```tsx
+// ✅ 正确示例 - 完整可运行的代码示例
+import { useState, useEffect } from 'react';
+
+interface User {
+  id: string;
+  name: string;
+}
+
+function UserComponent() {
+  const [users, setUsers] = useState<User[]>([]);
+  
+  useEffect(() => {
+    // 获取用户数据的逻辑
+  }, []);
+  
+  return <div>{users.length} 个用户</div>;
+}
+
+// ❌ 错误示例 - 不完整的代码示例
+function UserComponent() {
+  const [users, setUsers] = useState([]); // 缺少类型，缺少导入
+  return <div>{users.length} 个用户</div>;
+}
+```
+
+### 拼写和语法检查
+
+1. **中文文档**: 使用正确的中文标点符号和语法
+2. **英文代码**: 变量名、函数名、注释使用正确的英文拼写
+3. **术语一致性**: 保持技术术语的一致性
+
+
+## 代码规范
+
+### 代码质量要求
+
+编写的代码必须满足：
+
+1. **正确性**: 逻辑正确，无明显错误
+2. **时效性**: 使用最新的最佳实践和 API
+3. **无 Bug**: 经过基本测试，无明显缺陷
+4. **功能完整**: 完全实现所有要求的功能
+5. **安全性**: 遵循安全最佳实践
+6. **性能**: 考虑性能影响，优化关键路径
+
+### 代码可读性优先
+
+- **可读性优先于性能**: 除非有明确的性能需求，否则优先考虑代码的可读性和可维护性
+- **清晰的结构**: 使用清晰的函数分解和模块化
+- **有意义的命名**: 使用描述性的变量名和函数名
+- **适当的注释**: 为复杂逻辑添加必要的注释
+
+### 完整性要求
+
+1. **无 TODO**: 不留待办事项或占位符
+2. **无缺失**: 实现所有要求的功能，不留空白
+3. **引用文件名**: 在相关讨论中明确引用具体的文件名
+4. **简洁明了**: 减少不必要的冗长说明
+
+### 诚实原则
+
+- **承认不确定**: 如果对某个问题不确定，明确说明而不是猜测
+- **说明限制**: 如果无法完成某项任务，诚实说明原因
+- **避免偷懒**: 完整实现所有要求的功能，不走捷径
+
+### 代码质量工具
+
+项目使用以下工具确保代码质量：
+
+- **ESLint**: 代码静态分析
+- **Prettier**: 代码格式化
+- **TypeScript**: 类型检查
+- **Husky + lint-staged**: 提交前验证
+
+确保所有代码在提交前通过这些工具的检查。

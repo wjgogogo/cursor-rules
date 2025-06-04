@@ -1,0 +1,122 @@
+---
+description: npm 包安装规范
+globs: 
+alwaysApply: false
+---
+# npm 包安装规范
+
+本项目使用 pnpm 作为包管理器，并通过 workspace 功能管理多个子包。请严格遵循以下规范进行包的安装和管理。
+
+## pnpm 基本使用
+
+### 全局安装 pnpm
+
+如果尚未安装 pnpm，请先全局安装：
+
+```bash
+npm install -g pnpm
+```
+
+### 初始安装项目依赖
+
+初次克隆项目后，在根目录执行：
+
+```bash
+pnpm install
+```
+
+## Workspace 结构
+
+项目的 workspace 配置位于 @pnpm-workspace.yaml，当前包含：
+
+```yaml
+packages:
+  - 'packages/*'
+```
+
+这表示 `packages` 目录下的所有子目录都被视为独立的包。
+
+## 添加依赖
+
+### 添加根项目依赖
+
+在根目录添加所有子包共享的开发依赖：
+
+```bash
+pnpm add -Dw <package-name>  # 开发依赖
+pnpm add -w <package-name>   # 生产依赖
+```
+
+### 添加子包依赖
+
+在特定子包中添加依赖：
+
+```bash
+pnpm --filter <package-name> add <dependency-name>
+```
+
+例如，为 server 添加依赖：
+
+```bash
+pnpm --filter server add express
+```
+
+### 子包之间的依赖关系
+
+如果一个子包需要依赖另一个子包：
+
+```bash
+pnpm --filter <target-package> add <source-package>@workspace
+```
+
+例如，如果 server 需要依赖 compatible-server：
+
+```bash
+pnpm --filter server add compatible-server@workspace
+```
+
+## 更新依赖
+
+### 更新所有依赖
+
+```bash
+pnpm update
+```
+
+### 更新特定子包的依赖
+
+```bash
+pnpm --filter <package-name> update
+```
+
+## 运行脚本
+
+### 运行根项目脚本
+
+```bash
+pnpm <script-name>
+```
+
+### 运行子包脚本
+
+```bash
+pnpm --filter <package-name> <script-name>
+```
+
+例如，启动 server：
+
+```bash
+pnpm --filter server start
+```
+
+## 最佳实践
+1. **保持依赖一致性**：尽量在根项目中定义共享依赖
+2. **指定版本**：添加依赖时指定确切版本或合理的版本范围
+3. **定期更新**：定期更新依赖以修复安全问题
+4. **避免重复依赖**：利用 workspace 特性避免子包之间的重复依赖
+5. **使用 workspace 协议**：子包之间引用使用 `workspace:` 或 `workspace:*` 协议
+
+## 禁止事项
+1. **禁止使用 npm/yarn**：不要在项目中混用包管理器
+2. **禁止全局安装工具包**：项目工具应作为开发依赖安装
+3. **禁止手动修改 pnpm-lock.yaml**：锁文件应由 pnpm 自动管理

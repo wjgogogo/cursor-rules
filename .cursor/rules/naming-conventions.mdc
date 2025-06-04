@@ -1,0 +1,374 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 命名规范
+
+> **核心原则**：好的命名是代码自文档化的基础。名称应该清晰表达意图，避免歧义，遵循一致的风格。
+
+## 文件命名规范
+
+### 目录结构
+
+```
+src/
+├── components/        # 组件目录
+│   ├── ui/            # 基础 UI 组件
+│   ├── layout/        # 布局组件
+│   └── features/      # 功能组件
+├── hooks/             # 自定义 Hooks
+├── lib/               # 工具函数和库
+├── types/             # 类型定义
+├── pages/             # 页面组件
+└── styles/            # 全局样式
+```
+
+### 目录命名
+
+- **目录**: 使用小写字母加连字符（`kebab-case`）
+- 避免使用下划线或驼峰命名
+
+```
+// ✅ 正确示例
+components/auth-wizard/
+components/user-profile/
+hooks/use-local-storage/
+lib/api-client/
+
+// ❌ 错误示例
+components/AuthWizard/     // 应使用小写+连字符
+components/user_profile/   // 应使用连字符而非下划线
+hooks/useLocalStorage/     // 目录应使用小写+连字符
+```
+
+### 文件命名
+
+- **目录**: 使用小写字母加连字符（`kebab-case`）
+- 避免使用下划线或驼峰命名
+- **组件文件**: 使用 `kebab-case.tsx`，如 `button.tsx`, `user-profile.tsx`
+- **Hooks 文件**: 使用 `kebab-case.ts`，如 `use-window-size.ts`, `use-auth.ts`
+- **工具函数**: 使用 `kebab-case.ts`，如 `format-date.ts`, `api-client.ts`
+- **类型定义**: 使用 `kebab-case.d.ts`，如 `api-types.d.ts`
+- **样式文件**: 使用 `kebab-case.css`，如 `global-styles.css`
+- **测试文件**: 使用 `[name].test.tsx` 或 `[name].spec.tsx`
+
+## 变量命名规范
+
+### 基础命名规范
+
+遵循以下命名约定，确保代码风格的一致性：
+
+| 类型 | 命名风格 | 示例 | 说明 |
+|------|----------|------|------|
+| 变量、函数 | `camelCase` | `userName`, `fetchData()` | 首字母小写，后续单词首字母大写 |
+| 类、组件 | `PascalCase` | `UserCard`, `DataService` | 每个单词首字母大写 |
+| 常量 | `UPPER_SNAKE_CASE` | `API_BASE_URL`, `MAX_RETRY_COUNT` | 全大写，单词间用下划线 |
+| 接口 | `PascalCase` | `UserData`, `ApiResponse` | 避免 `I` 前缀 |
+| 类型别名 | `PascalCase` | `ButtonVariant`, `ThemeMode` | 同接口规范 |
+| 枚举 | `PascalCase` | `UserRole`, `OrderStatus` | 枚举值使用 `PascalCase` |
+
+### 语义化命名原则
+
+**核心思想**：名称应该表达"做什么"而不是"怎么做"，让代码具有自解释性。
+
+#### 布尔值命名
+
+使用明确的前缀，让布尔值的含义一目了然：
+
+```tsx
+// ✅ 正确示例 - 布尔值命名
+const isLoading = false;           // 状态判断
+const hasPermission = true;        // 拥有某种能力
+const shouldShowModal = false;     // 是否应该执行
+const canEdit = true;              // 是否能够执行
+const willExpire = false;          // 将来会发生
+const didComplete = true;          // 已经完成
+
+// ❌ 错误示例 - 模糊的布尔值命名
+const loading = false;             // 应使用 isLoading
+const permission = true;           // 应使用 hasPermission
+const visible = false;             // 应使用 isVisible
+const enabled = true;              // 应使用 isEnabled
+```
+
+#### 函数命名
+
+函数名应该清晰描述其行为，通常以动词开头：
+
+```tsx
+// ✅ 正确示例 - 函数命名
+
+// CRUD 操作
+function fetchUserProfile(userId: string): Promise<UserProfile> { }
+function createNewPost(postData: PostData): Promise<Post> { }
+function updateUserSettings(userId: string, settings: UserSettings): Promise<void> { }
+function deleteComment(commentId: string): Promise<void> { }
+
+// 事件处理
+function handleSubmitForm(event: FormEvent): void { }
+function handleUserClick(userId: string): void { }
+function handleSearchInputChange(query: string): void { }
+function handleModalClose(): void { }
+
+// ❌ 错误示例 - 模糊的函数命名
+function userData() { }            // 应使用 fetchUserData 或 getUserData
+function submit() { }              // 应使用 handleSubmit 或 submitForm
+function check() { }               // 应使用具体的 checkSomething
+function process() { }             // 应使用具体的处理动作
+```
+
+#### 组件和 Props 命名
+
+React 组件和 Props 的命名应该直观地反映其用途：
+
+```tsx
+// ✅ 正确示例 - 组件和 Props 命名
+
+// 组件命名
+function UserProfileCard({ user, onEdit }: UserProfileCardProps) { }
+function SearchInput({ placeholder, onSearch }: SearchInputProps) { }
+function LoadingSpinner({ size, color }: LoadingSpinnerProps) { }
+function ErrorBoundary({ children, fallback }: ErrorBoundaryProps) { }
+
+// Props 接口
+interface UserProfileCardProps {
+  user: User;
+  isEditable?: boolean;           // 布尔值使用 is/has/can 前缀
+  showAvatar?: boolean;
+  onEdit?: (user: User) => void;  // 事件处理使用 on 前缀
+  onDelete?: (userId: string) => void;
+  className?: string;             // 可选的样式类名
+}
+```
+
+
+### 特殊场景命名指导
+
+#### 自定义 Hooks 命名
+
+```tsx
+// ✅ 正确示例 - Hooks 命名
+function useLocalStorage<T>(key: string, initialValue: T) { }
+function useDebounce<T>(value: T, delay: number) { }
+function useWindowSize() { }
+function useApiData<T>(url: string) { }
+function useAuthState() { }
+function useShoppingCart() { }
+
+// 业务相关的 Hooks
+function useUserProfile(userId: string) { }
+function useOrderHistory(customerId: string) { }
+function useRealTimeNotifications() { }
+
+// ❌ 错误示例
+function localStorage() { }         // 应以 use 开头
+function getWindowSize() { }        // Hook 必须以 use 开头
+function userProfile() { }          // 缺少 use 前缀
+```
+
+#### API 和服务命名
+
+```tsx
+// ✅ 正确示例 - API 和服务命名
+
+// API 客户端
+class UserApiClient {
+  async fetchUserProfile(userId: string): Promise<UserProfile> { }
+  async updateUserProfile(userId: string, data: Partial<UserProfile>): Promise<void> { }
+}
+
+// 服务类
+class NotificationService {
+  sendEmail(to: string, subject: string, content: string): Promise<void> { }
+  sendPushNotification(userId: string, message: string): Promise<void> { }
+}
+
+// API 端点常量
+const API_ENDPOINTS = {
+  USERS: '/api/users',
+  POSTS: '/api/posts',
+  COMMENTS: '/api/comments',
+  AUTH_LOGIN: '/api/auth/login',
+  AUTH_LOGOUT: '/api/auth/logout',
+} as const;
+
+// API 响应类型
+interface GetUsersResponse {
+  users: User[];
+  pagination: PaginationInfo;
+}
+
+interface CreatePostRequest {
+  title: string;
+  content: string;
+  tags: string[];
+}
+```
+
+#### 状态管理命名
+
+```tsx
+// ✅ 正确示例 - 状态管理命名
+
+// Zustand Store
+interface UserStore {
+  currentUser: User | null;
+  isAuthenticated: boolean;
+  loginError: string | null;
+  
+  setCurrentUser: (user: User) => void;
+  clearCurrentUser: () => void;
+  updateUserProfile: (updates: Partial<User>) => void;
+}
+
+// React State
+function UserDashboard() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'name' | 'email' | 'createdAt'>('name');
+  
+  // 派生状态有明确的命名
+  const filteredUsers = users.filter(user => 
+    user.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  const selectedUser = users.find(user => user.id === selectedUserId);
+}
+```
+
+### 常见错误与最佳实践
+
+#### 避免的命名模式
+
+```tsx
+// ❌ 常见错误模式
+
+// 1. 使用缩写和简写
+const usr = getCurrentUser();           // 应使用 user
+const btn = document.querySelector();   // 应使用 button
+const calc = (a, b) => a + b;          // 应使用 calculate
+
+// 2. 无意义的数字后缀
+const data1 = fetchUsers();            // 应使用具体的名称
+const data2 = fetchPosts();            // 应使用具体的名称
+const temp1 = processData();           // 避免使用 temp
+
+// 3. 类型信息在变量名中
+const userArray = [user1, user2];      // 应使用 users
+const userObject = { name: 'John' };   // 应使用 user
+const isLoadingBoolean = false;        // 应使用 isLoading
+
+// 4. 过于简单或过于复杂
+const d = new Date();                  // 应使用 currentDate 或具体的含义
+const theCurrentlySelectedUserProfileDataFromTheServer = userData;  // 过于复杂
+
+// ✅ 改进后的命名
+const currentUser = getCurrentUser();
+const submitButton = document.querySelector('#submit');
+const calculateTotal = (a, b) => a + b;
+
+const users = fetchUsers();
+const posts = fetchPosts();
+const processedData = processData();
+
+const users = [user1, user2];
+const user = { name: 'John' };
+const isLoading = false;
+
+const currentDate = new Date();
+const selectedUserProfile = userData;
+```
+
+#### 重构命名的策略
+
+```tsx
+// ✅ 重构示例：从模糊到清晰
+
+// 重构前 - 模糊的命名
+function Component({ data, fn, flag }) {
+  const [state, setState] = useState(false);
+  const result = useMemo(() => data.filter(item => item.active), [data]);
+  
+  const handle = () => {
+    if (flag) {
+      fn(result);
+    }
+  };
+  
+  return <div onClick={handle}>{result.length}</div>;
+}
+
+// 重构后 - 清晰的命名
+function ActiveUserList({ users, onUsersSelect, shouldAutoSelect }: ActiveUserListProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const activeUsers = useMemo(() => 
+    users.filter(user => user.isActive), 
+    [users]
+  );
+  
+  const handleUserListClick = () => {
+    if (shouldAutoSelect) {
+      onUsersSelect(activeUsers);
+    }
+  };
+  
+  return (
+    <div onClick={handleUserListClick}>
+      活跃用户数量: {activeUsers.length}
+    </div>
+  );
+}
+
+interface ActiveUserListProps {
+  users: User[];
+  onUsersSelect: (users: User[]) => void;
+  shouldAutoSelect: boolean;
+}
+```
+
+### 命名技巧与约定
+
+#### 长度平衡原则
+
+```tsx
+// ✅ 适当的名称长度
+
+// 作用域小 - 可以使用较短的名称
+users.map(u => u.name);                    // 循环中的短名称可以接受
+const [isOpen, setIsOpen] = useState();    // 常见模式的简洁命名
+
+// 作用域大 - 使用描述性名称
+const authenticatedUserProfile = useAuthenticatedUser();  // 全局状态用描述性名称
+const handleSubmitUserRegistrationForm = () => { };      // 重要函数用完整描述
+
+// 中等作用域 - 平衡简洁和清晰
+const userProfiles = await fetchUserProfiles();
+const isEmailValidationEnabled = checkFeatureFlag('email-validation');
+```
+
+
+## 一致性约定
+
+```tsx
+// ✅ 保持团队一致性
+
+// 统一的前缀模式
+const isLoading = false;           // 布尔状态统一使用 is/has/can/should
+const hasPermission = true;
+const canEdit = false;
+const shouldShowTip = true;
+
+// 统一的事件处理命名
+const handleClick = () => { };     // 用户交互统一使用 handle 前缀
+const handleSubmit = () => { };
+const handleInputChange = () => { };
+
+// 统一的 API 相关命名
+const fetchUsers = async () => { };        // 获取数据使用 fetch 前缀
+const createUser = async () => { };        // 创建使用 create
+const updateUser = async () => { };        // 更新使用 update
+const deleteUser = async () => { };        // 删除使用 delete
+```

@@ -1,0 +1,103 @@
+---
+description: 
+globs: *.js,*.jsx,*.ts,*.tsx
+alwaysApply: false
+---
+# React 开发规范
+
+本规范定义了 React 开发中的组件定义、Hooks 使用和编程模式。
+
+## 组件定义
+
+- 使用函数组件和 Hooks，避免使用类组件
+- 使用 TypeScript 定义 Props 和 State 类型
+
+```tsx
+// ✅ 正确示例
+import { useState } from 'react';
+
+interface ButtonProps {
+  label: string;
+  onClick: () => void;
+  variant?: 'primary' | 'secondary';
+}
+
+export function Button({ label, onClick, variant = 'primary' }: ButtonProps) {
+  const [isHovered, setIsHovered] = useState(false);
+  
+  return (
+    <button 
+      className={`btn btn-${variant} ${isHovered ? 'hovered' : ''}`}
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {label}
+    </button>
+  );
+}
+
+// ❌ 错误示例
+export default function Button(props) {
+  // 未定义 props 类型
+  // 使用默认导出
+  // ...
+}
+```
+
+## Hooks 使用
+
+- 自定义 Hooks 名称必须以 `use` 开头
+- 遵循 Hooks 规则，不在条件语句中使用 Hooks
+- 复杂逻辑封装为自定义 Hooks
+
+```tsx
+// ✅ 正确示例
+function useWindowSize() {
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  
+  useEffect(() => {
+    // 实现逻辑
+  }, []);
+  
+  return size;
+}
+
+// ❌ 错误示例
+function getWindowSize() { // 不以 use 开头
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  // ...
+}
+```
+
+## 编程模式
+
+- 使用函数式和声明式编程模式，避免使用类
+- 优先使用迭代和模块化，避免代码重复
+- 使用描述性变量名和辅助动词（如 `isLoading`, `hasError`）
+
+```tsx
+// ✅ 正确示例 - 函数式编程
+const processUserData = (users: User[]) => 
+  users
+    .filter(user => user.isActive)
+    .map(user => ({ ...user, fullName: `${user.firstName} ${user.lastName}` }))
+    .sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+// ✅ 正确示例 - 描述性变量名
+const isLoading = false;
+const hasError = false;
+const shouldShowModal = true;
+
+// ❌ 错误示例 - 命令式编程
+function processUserData(users) {
+  let result = [];
+  for (let i = 0; i < users.length; i++) {
+    if (users[i].isActive) {
+      users[i].fullName = users[i].firstName + ' ' + users[i].lastName;
+      result.push(users[i]);
+    }
+  }
+  return result;
+}
+```

@@ -1,0 +1,254 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Context7 MCP 集成规范
+
+> **强制要求**：在使用任何第三方框架、npm 包或库实现代码功能时，必须首先通过 Context7 MCP 获取最新的官方文档和最佳实践指导。
+
+## 适用场景
+
+### 🔄 必须使用 Context7 MCP 的情况
+
+以下情况下必须调用 Context7 MCP 获取文档：
+
+1. **引入新的 npm 包或库**
+   - 首次在项目中使用某个库
+   - 升级现有库的版本
+   - 替换现有的库或框架
+
+2. **实现复杂功能**
+   - 使用库的高级 API 或配置
+   - 集成多个库的复合功能
+   - 性能优化相关的实现
+
+3. **解决问题和调试**
+   - 遇到库相关的 bug 或错误
+   - 需要了解最佳实践
+   - 查找特定用例的解决方案
+
+4. **代码重构和优化**
+   - 更新过时的 API 使用方式
+   - 采用新的推荐模式
+   - 提升代码质量和性能
+
+## 使用流程
+
+### 第一步：解析库 ID
+
+在使用任何第三方库之前，首先解析获取 Context7 兼容的库 ID：
+
+```tsx
+// 示例：准备使用 React Query 库
+// 步骤1: 解析库ID (由AI助手调用 resolve-library-id)
+// 输入: "React Query" 或 "@tanstack/react-query"
+// 输出: "/tanstack/react-query" 或具体版本如 "/tanstack/react-query/v4.29.0"
+```
+
+### 第二步：获取文档
+
+使用解析得到的库 ID 获取详细文档：
+
+```tsx
+// 步骤2: 获取文档 (由AI助手调用 get-library-docs)
+// 输入: context7CompatibleLibraryID: "/tanstack/react-query"
+// 可选参数:
+// - topic: "hooks" | "caching" | "mutations" 等特定主题
+// - tokens: 文档令牌数量 (默认 10000)
+```
+
+### 第三步：基于文档实现
+
+严格按照获取的最新文档实现功能：
+
+```tsx
+// ✅ 基于 Context7 文档的正确实现
+import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// 根据文档建议的最佳实践配置
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+function UserProfile({ userId }: { userId: string }) {
+  // 使用文档中推荐的 hook 模式
+  const { data: user, isLoading, error } = useQuery({
+    queryKey: ['user', userId],
+    queryFn: () => fetchUser(userId),
+    enabled: !!userId, // 文档建议的条件查询模式
+  });
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+  
+  return <div>{user?.name}</div>;
+}
+
+// ❌ 未查阅文档的过时实现
+function UserProfileOld({ userId }: { userId: string }) {
+  // 使用过时的 API 模式
+  const { data: user, isLoading, error } = useQuery(
+    ['user', userId], // 旧版本的数组格式
+    () => fetchUser(userId),
+    {
+      enabled: !!userId,
+      // 缺少推荐的配置选项
+    }
+  );
+  
+  // 缺少错误处理等最佳实践
+  return <div>{user?.name}</div>;
+}
+```
+
+## 工作流程示例
+
+### 场景一：添加新的状态管理库
+
+```typescript
+// 需求：为项目添加 Zustand 状态管理
+
+// 步骤1: AI助手调用 resolve-library-id("zustand")
+// 结果: "/pmndrs/zustand"
+
+// 步骤2: AI助手调用 get-library-docs({
+//   context7CompatibleLibraryID: "/pmndrs/zustand",
+//   topic: "typescript setup",
+//   tokens: 8000
+// })
+
+// 步骤3: 基于获取的文档实现
+interface UserStore {
+  user: User | null;
+  setUser: (user: User) => void;
+  clearUser: () => void;
+}
+
+// 使用文档中推荐的 TypeScript 模式
+const useUserStore = create<UserStore>((set) => ({
+  user: null,
+  setUser: (user) => set({ user }),
+  clearUser: () => set({ user: null }),
+}));
+
+// 在组件中使用 - 遵循文档的最佳实践
+function UserComponent() {
+  const { user, setUser } = useUserStore();
+  // ... 实现细节
+}
+```
+
+### 场景二：API 客户端库集成
+
+```typescript
+// 需求：集成 Axios 进行 API 调用
+
+// 步骤1: resolve-library-id("axios")
+// 步骤2: get-library-docs({ 
+//   context7CompatibleLibraryID: "/axios/axios",
+//   topic: "interceptors configuration",
+//   tokens: 10000 
+// })
+
+// 步骤3: 按文档实现
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+
+// 基于文档的推荐配置
+const apiClient: AxiosInstance = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// 使用文档推荐的拦截器模式
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = getAuthToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // 根据文档处理认证错误
+      handleAuthError();
+    }
+    return Promise.reject(error);
+  }
+);
+```
+
+### 场景三：UI 组件库使用
+
+```typescript
+// 需求：使用 Radix UI 组件
+
+// 步骤1: resolve-library-id("@radix-ui/react-dialog")
+// 步骤2: get-library-docs({
+//   context7CompatibleLibraryID: "/radix-ui/primitives",
+//   topic: "dialog accessibility",
+//   tokens: 12000
+// })
+
+// 步骤3: 按文档的可访问性指南实现
+import * as Dialog from '@radix-ui/react-dialog';
+
+function UserModal({ children }: { children: React.ReactNode }) {
+  return (
+    <Dialog.Root>
+      <Dialog.Trigger asChild>
+        {children}
+      </Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/50" />
+        <Dialog.Content 
+          className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+          // 文档要求的可访问性属性
+          aria-describedby="modal-description"
+        >
+          <Dialog.Title className="text-lg font-semibold">
+            User Information
+          </Dialog.Title>
+          <Dialog.Description id="modal-description">
+            View and edit user details
+          </Dialog.Description>
+          
+          {/* Modal content */}
+          
+          <Dialog.Close asChild>
+            <button aria-label="Close modal">×</button>
+          </Dialog.Close>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+```
+
+## 强制检查清单
+
+在每次使用第三方库实现功能时，必须确认：
+
+- [ ] **文档获取**：已通过 Context7 MCP 获取最新文档
+- [ ] **版本确认**：使用的 API 与文档版本匹配
+- [ ] **最佳实践**：遵循文档中的推荐模式和配置
+- [ ] **类型安全**：使用正确的 TypeScript 类型定义
+- [ ] **错误处理**：实现文档建议的错误处理方式
+- [ ] **性能优化**：采用文档推荐的性能最佳实践
+- [ ] **可访问性**：遵循文档的可访问性指南（如适用）
+
+**重要提醒**：Context7 MCP 提供的是实时更新的官方文档，确保您始终使用最新、最正确的实现方式。这是代码质量的重要保障，不可忽视！

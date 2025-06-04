@@ -1,0 +1,150 @@
+---
+description: 
+globs: *.js,*.jsx,*.ts,*.tsx
+alwaysApply: false
+---
+# 模块导出规范
+
+本规范定义了模块导出的最佳实践，确保代码的可维护性和一致性。
+
+## 导出方式
+
+- **优先使用命名导出，特别是组件**，避免默认导出
+- 为复杂模块创建索引文件（`index.ts`）
+- 避免循环依赖
+
+```tsx
+// ✅ 正确示例 - 组件命名导出
+export interface ButtonProps {
+  // ...
+}
+
+export function Button(props: ButtonProps) {
+  // ...
+}
+
+// ✅ 正确示例 - index.ts
+export * from './Button';
+export * from './Input';
+export * from './Select';
+
+// ✅ 正确示例 - 多个命名导出
+export { Button } from './Button';
+export { Input } from './Input';
+export { type ButtonProps, type InputProps } from './types';
+
+// ❌ 错误示例 - 使用默认导出
+export default function Button() {
+  // ...
+}
+
+// ❌ 错误示例 - 混合导出
+export default Button;
+export { ButtonProps }; // 应该统一使用命名导出
+```
+
+## 导出组织原则
+
+### 类型导出
+
+- 类型和接口使用 `export type` 或 `export interface`
+- 将类型导出与值导出分开组织
+
+```tsx
+// ✅ 正确示例 - 类型导出
+export interface User {
+  id: string;
+  name: string;
+}
+
+export type UserRole = 'admin' | 'user' | 'guest';
+
+export function createUser(userData: User): Promise<User> {
+  // 实现
+}
+```
+
+### 索引文件组织
+
+- 使用 `index.ts` 文件作为模块的入口点
+- 按功能分组导出
+- 提供清晰的导出结构
+
+```tsx
+// ✅ 正确示例 - components/index.ts
+// UI 组件
+export { Button } from './ui/Button';
+export { Input } from './ui/Input';
+export { Modal } from './ui/Modal';
+
+// 布局组件
+export { Header } from './layout/Header';
+export { Footer } from './layout/Footer';
+export { Sidebar } from './layout/Sidebar';
+
+// 功能组件
+export { UserProfile } from './features/UserProfile';
+export { ProductList } from './features/ProductList';
+
+// 类型导出
+export type { ButtonProps } from './ui/Button';
+export type { InputProps } from './ui/Input';
+export type { ModalProps } from './ui/Modal';
+```
+
+## 导入规范
+
+- 使用解构导入获取具体的导出项
+- 按来源分组导入语句
+- 使用类型导入标记类型
+
+```tsx
+// ✅ 正确示例 - 导入组织
+// React 相关
+import { useState, useEffect } from 'react';
+import type { FC, ReactNode } from 'react';
+
+// 第三方库
+import { clsx } from 'clsx';
+import { z } from 'zod';
+
+// 内部模块
+import { Button, Input } from '@/components/ui';
+import { useAuth } from '@/hooks/useAuth';
+import type { User, ApiResponse } from '@/types/api';
+
+// 相对导入
+import { validateForm } from '../utils/validation';
+import type { FormData } from './types';
+```
+
+## 避免循环依赖
+
+- 使用依赖注入模式
+- 创建共享的类型文件
+- 重构相互依赖的模块
+
+```tsx
+// ✅ 正确示例 - 避免循环依赖
+
+// types/shared.ts - 共享类型
+export interface User {
+  id: string;
+  name: string;
+}
+
+// services/userService.ts
+import type { User } from '../types/shared';
+
+export function fetchUser(id: string): Promise<User> {
+  // 实现
+}
+
+// components/UserCard.tsx
+import type { User } from '../types/shared';
+import { fetchUser } from '../services/userService';
+
+export function UserCard({ userId }: { userId: string }) {
+  // 实现
+}
+```
