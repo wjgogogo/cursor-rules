@@ -61,6 +61,297 @@ function MyComponent() {
 }
 ```
 
+## 设计系统规范
+
+### 颜色系统
+
+【必须】使用统一颜色变量：
+
+```css
+/* globals.css */
+:root {
+  /* 主色调 */
+  --primary: 222.2 84% 4.9%;
+  --primary-foreground: 210 40% 98%;
+  
+  /* 次要色调 */
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222.2 84% 4.9%;
+  
+  /* 状态色彩 */
+  --success: 142 76% 36%;
+  --warning: 38 92% 50%;
+  --error: 0 84% 60%;
+  --info: 221 83% 53%;
+  
+  /* 中性色彩 */
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  
+  /* 边框和分割线 */
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 222.2 84% 4.9%;
+}
+
+.dark {
+  --primary: 210 40% 98%;
+  --primary-foreground: 222.2 84% 4.9%;
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  /* ... 其他暗色主题变量 */
+}
+```
+
+### 字体系统
+
+【必须】遵循字体层级：
+
+```tsx
+// ✅ 正确 - 字体层级
+<div className="space-y-4">
+  <h1 className="text-4xl font-bold tracking-tight lg:text-5xl">
+    主标题 (H1)
+  </h1>
+  <h2 className="text-3xl font-semibold tracking-tight">
+    次标题 (H2)
+  </h2>
+  <h3 className="text-2xl font-semibold">
+    三级标题 (H3)
+  </h3>
+  <p className="text-base leading-7">
+    正文内容，使用合适的行高确保可读性
+  </p>
+  <p className="text-sm text-muted-foreground">
+    辅助文本或说明信息
+  </p>
+</div>
+```
+
+### 间距系统
+
+【必须】使用一致间距：
+
+```tsx
+// ✅ 正确 - 统一间距系统
+<div className="space-y-6">
+  {/* 组件间距：2, 4, 6, 8, 12, 16, 24 */}
+  <section className="space-y-4">
+    <h2 className="mb-2">标题</h2>
+    <p className="mb-4">段落内容</p>
+    <div className="flex gap-2">
+      <Button>按钮1</Button>
+      <Button>按钮2</Button>
+    </div>
+  </section>
+  
+  {/* 页面布局间距 */}
+  <main className="container mx-auto px-4 py-8 lg:px-8 lg:py-12">
+    {/* 内容 */}
+  </main>
+</div>
+```
+
+## 组件变体规范
+
+### 按钮变体
+
+【必须】定义标准按钮变体：
+
+```tsx
+// ✅ 正确 - 按钮变体系统
+const buttonVariants = {
+  variant: {
+    default: "bg-primary text-primary-foreground hover:bg-primary/90",
+    destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+    outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+    ghost: "hover:bg-accent hover:text-accent-foreground",
+    link: "text-primary underline-offset-4 hover:underline"
+  },
+  size: {
+    default: "h-10 px-4 py-2",
+    sm: "h-9 rounded-md px-3",
+    lg: "h-11 rounded-md px-8",
+    icon: "h-10 w-10"
+  }
+};
+
+// 使用示例
+<Button variant="outline" size="lg">大型轮廓按钮</Button>
+<Button variant="destructive" size="sm">小型危险按钮</Button>
+```
+
+### 状态样式
+
+【必须】统一状态表示：
+
+```tsx
+// ✅ 正确 - 状态样式
+<div className="space-y-2">
+  {/* 加载状态 */}
+  <Button disabled className="opacity-50 cursor-not-allowed">
+    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+    加载中...
+  </Button>
+  
+  {/* 成功状态 */}
+  <div className="flex items-center gap-2 text-success">
+    <CheckCircle className="h-4 w-4" />
+    操作成功
+  </div>
+  
+  {/* 错误状态 */}
+  <div className="flex items-center gap-2 text-error">
+    <AlertCircle className="h-4 w-4" />
+    操作失败
+  </div>
+  
+  {/* 警告状态 */}
+  <div className="flex items-center gap-2 text-warning">
+    <AlertTriangle className="h-4 w-4" />
+    注意事项
+  </div>
+</div>
+```
+
+## 可访问性样式要求
+
+### 焦点管理
+
+【必须】提供清晰焦点指示：
+
+```tsx
+// ✅ 正确 - 焦点样式
+<button className="
+  px-4 py-2 rounded-md
+  focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
+  focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+">
+  可访问按钮
+</button>
+
+// ✅ 正确 - 跳过链接
+<a 
+  href="#main-content"
+  className="
+    sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4
+    bg-primary text-primary-foreground px-4 py-2 rounded-md
+    focus:z-50
+  "
+>
+  跳转到主内容
+</a>
+```
+
+### 颜色对比度
+
+【必须】确保足够对比度：
+
+```tsx
+// ✅ 正确 - 高对比度文本
+<div className="bg-background text-foreground">
+  {/* 对比度比例至少 4.5:1 */}
+  <p className="text-foreground">主要文本内容</p>
+  <p className="text-muted-foreground">次要文本内容</p>
+</div>
+
+// ❌ 错误 - 对比度不足
+<div className="bg-gray-100 text-gray-300">
+  {/* 对比度过低，难以阅读 */}
+</div>
+```
+
+### 屏幕阅读器支持
+
+【必须】提供语义化标记：
+
+```tsx
+// ✅ 正确 - 语义化和 ARIA 标签
+<nav aria-label="主导航">
+  <ul className="flex space-x-4">
+    <li>
+      <a 
+        href="/home" 
+        className="text-foreground hover:text-primary"
+        aria-current="page"
+      >
+        首页
+      </a>
+    </li>
+  </ul>
+</nav>
+
+<button 
+  aria-expanded={isOpen}
+  aria-controls="dropdown-menu"
+  className="flex items-center gap-2"
+>
+  菜单 <ChevronDown className="h-4 w-4" />
+</button>
+```
+
+## 动画和过渡效果
+
+### 标准过渡
+
+【必须】使用一致的过渡效果：
+
+```tsx
+// ✅ 正确 - 标准过渡时间
+<div className="
+  transition-all duration-200 ease-in-out
+  hover:scale-105 hover:shadow-lg
+  focus:scale-105 focus:shadow-lg
+">
+  悬停效果卡片
+</div>
+
+// ✅ 正确 - 页面切换动画
+<div className="
+  animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2
+  duration-300
+">
+  页面内容
+</div>
+```
+
+### 动画性能
+
+【必须】优化动画性能：
+
+```css
+/* ✅ 正确 - 使用 transform 和 opacity */
+.smooth-animation {
+  transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  will-change: transform, opacity;
+}
+
+/* ❌ 错误 - 避免动画布局属性 */
+.bad-animation {
+  transition: width 0.2s, height 0.2s; /* 会触发重排 */
+}
+```
+
+### 减少动画偏好
+
+【必须】尊重用户偏好：
+
+```css
+/* ✅ 正确 - 尊重减少动画偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
 ## 主题和暗模式
 
 【必须】遵循：
@@ -68,8 +359,36 @@ function MyComponent() {
 - 颜色使用 CSS 变量，避免硬编码
 - 遵循设计系统颜色和间距
 
+```tsx
+// ✅ 正确 - 主题切换
+<div className="bg-background text-foreground border border-border">
+  <h1 className="text-foreground">标题</h1>
+  <p className="text-muted-foreground">描述文本</p>
+  <Button className="bg-primary text-primary-foreground">
+    主要按钮
+  </Button>
+</div>
+```
+
 ## 响应式原则
 
 【必须】遵循：
 - **移动优先**：从小屏开始，逐步增强
 - 确保所有设备可用性和可访问性
+- 使用语义化断点命名
+
+```tsx
+// ✅ 正确 - 移动优先响应式布局
+<div className="
+  grid grid-cols-1 gap-4 p-4
+  sm:grid-cols-2 sm:gap-6 sm:p-6
+  md:grid-cols-3 md:gap-8 md:p-8
+  lg:grid-cols-4 lg:gap-12 lg:p-12
+">
+  {items.map(item => (
+    <Card key={item.id} className="w-full">
+      {/* 卡片内容 */}
+    </Card>
+  ))}
+</div>
+```

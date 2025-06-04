@@ -1,0 +1,463 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# 安全规范
+
+## 输入验证和清理
+
+【必须】验证所有用户输入：
+
+```tsx
+// ✅ 正确 - 使用 Zod 验证
+import { z } from 'zod';
+
+const UserInputSchema = z.object({
+  name: z.string().min(1).max(100).regex(/^[a-zA-Z\s]+$/),
+  email: z.string().email(),
+  age: z.number().int().min(0).max(150),
+  website: z.string().url().optional(),
+});
+
+function validateUserInput(input: unknown) {
+  try {
+    return UserInputSchema.parse(input);
+  } catch (error) {
+    throw new Error('输入验证失败');
+  }
+}
+
+// ✅ 正确 - 表单验证
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+
+function UserForm() {
+  const form = useForm({
+    resolver: zodResolver(UserInputSchema),
+  });
+
+  const onSubmit = (data: z.infer<typeof UserInputSchema>) => {
+    // 数据已经过验证
+    submitUser(data);
+  };
+
+  return (
+    <form onSubmit={form.handleSubmit(onSubmit)}>
+      {/* 表单字段 */}
+    </form>
+  );
+}
+
+// ❌ 错误 - 未验证输入
+function badSubmit(data: any) {
+  // 直接使用未验证的数据
+  fetch('/api/users', {
+    method: 'POST',
+    body: JSON.stringify(data), // 危险！
+  });
+}
+```
+
+## XSS 防护
+
+【必须】防止跨站脚本攻击：
+
+```tsx
+// ✅ 正确 - React 自动转义
+function SafeComponent({ userContent }: { userContent: string }) {
+  return (
+    <div>
+      {/* React 自动转义，安全 */}
+      <p>{userContent}</p>
+      
+      {/* 使用 DOMPurify 清理 HTML */}
+      <div 
+        dangerouslySetInnerHTML={{
+          __html: DOMPurify.sanitize(userContent)
+        }}
+      />
+    </div>
+  );
+}
+
+// ✅ 正确 - 内容安全策略 (CSP)
+// 在 HTML head 中添加
+<meta 
+  httpEquiv="Content-Security-Policy" 
+  content="
+    default-src 'self';
+    script-src 'self' 'unsafe-inline';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: https:;
+  "
+/>
+
+// ❌ 错误 - 直接插入 HTML
+function DangerousComponent({ userContent }: { userContent: string }) {
+  return (
+    <div 
+      dangerouslySetInnerHTML={{ __html: userContent }} // 危险！
+    />
+  );
+}
+```
+
+## CSRF 防护
+
+【必须】防止跨站请求伪造：
+
+```tsx
+// ✅ 正确 - 使用 CSRF Token
+const api = axios.create({
+  baseURL: '/api',
+  headers: {
+    'X-Requested-With': 'XMLHttpRequest',
+  },
+});
+
+// 添加 CSRF token 拦截器
+api.interceptors.request.use((config) => {
+  const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+  if (token) {
+    config.headers['X-CSRF-Token'] = token;
+  }
+  return config;
+});
+
+// ✅ 正确 - SameSite Cookie 设置
+// 服务端设置
+app.use(session({
+  cookie: {
+    sameSite: 'strict', // 或 'lax'
+    secure: true, // HTTPS 环境
+    httpOnly: true,
+  }
+}));
+
+// ✅ 正确 - 验证 Referer 头
+function validateReferer(req: Request) {
+  const referer = req.headers.referer;
+  const allowedOrigins = ['https://yourdomain.com'];
+  
+  if (!referer || !allowedOrigins.some(origin => referer.startsWith(origin))) {
+    throw new Error('Invalid referer');
+  }
+}
+```
+
+## 敏感数据处理
+
+【必须】安全处理敏感信息：
+
+```tsx
+// ✅ 正确 - 环境变量管理
+// .env.local (不提交到版本控制)
+NEXT_PUBLIC_API_URL=https://api.example.com
+DATABASE_URL=postgresql://...
+JWT_SECRET=your-secret-key
+
+// ✅ 正确 - 敏感数据不在客户端存储
+function AuthService() {
+  // 使用 httpOnly cookie 存储 token
+  const login = async (credentials: LoginCredentials) => {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      credentials: 'include', // 包含 cookie
+      body: JSON.stringify(credentials),
+    });
+    
+    // 不在 localStorage 存储敏感信息
+    return response.json();
+  };
+}
+
+// ✅ 正确 - 密码处理
+function PasswordInput() {
+  const [password, setPassword] = useState('');
+  
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    
+    // 提交后立即清理
+    submitPassword(password);
+    setPassword(''); // 清理内存中的密码
+  };
+
+  return (
+    <input
+      type="password"
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+      autoComplete="current-password"
+    />
+  );
+}
+
+// ❌ 错误 - 敏感数据存储
+localStorage.setItem('token', jwtToken); // 危险！
+console.log('Password:', password); // 危险！
+```
+
+## API 安全
+
+【必须】确保 API 调用安全：
+
+```tsx
+// ✅ 正确 - 请求拦截和错误处理
+const secureApi = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// 请求拦截器
+secureApi.interceptors.request.use(
+  (config) => {
+    // 添加认证头
+    const token = getAuthToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// 响应拦截器
+secureApi.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // 处理未授权
+      redirectToLogin();
+    }
+    return Promise.reject(error);
+  }
+);
+
+// ✅ 正确 - 速率限制
+const rateLimiter = new Map();
+
+function rateLimit(key: string, limit: number, window: number) {
+  const now = Date.now();
+  const requests = rateLimiter.get(key) || [];
+  
+  // 清理过期请求
+  const validRequests = requests.filter((time: number) => now - time < window);
+  
+  if (validRequests.length >= limit) {
+    throw new Error('Rate limit exceeded');
+  }
+  
+  validRequests.push(now);
+  rateLimiter.set(key, validRequests);
+}
+```
+
+## 依赖安全扫描
+
+【必须】定期检查依赖安全：
+
+```json
+// package.json 安全脚本
+{
+  "scripts": {
+    "audit": "npm audit",
+    "audit:fix": "npm audit fix",
+    "security:check": "npm audit && snyk test",
+    "security:monitor": "snyk monitor"
+  },
+  "devDependencies": {
+    "snyk": "^1.0.0"
+  }
+}
+```
+
+```yaml
+# .github/workflows/security.yml
+name: Security Scan
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * 1' # 每周一凌晨2点
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      
+      # npm audit
+      - run: npm audit --audit-level=moderate
+      
+      # Snyk 扫描
+      - uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=medium
+```
+
+## 认证和授权
+
+【必须】实现安全的认证机制：
+
+```tsx
+// ✅ 正确 - JWT 处理
+interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+}
+
+function useAuth() {
+  const [authState, setAuthState] = useState<AuthState>({
+    user: null,
+    isAuthenticated: false,
+  });
+
+  const login = async (credentials: LoginCredentials) => {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials),
+      });
+
+      if (response.ok) {
+        const user = await response.json();
+        setAuthState({ user, isAuthenticated: true });
+      }
+    } catch (error) {
+      console.error('Login failed:', error);
+    }
+  };
+
+  const logout = async () => {
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    });
+    setAuthState({ user: null, isAuthenticated: false });
+  };
+
+  return { ...authState, login, logout };
+}
+
+// ✅ 正确 - 路由保护
+function ProtectedRoute({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <>{children}</>;
+}
+```
+
+## 数据传输安全
+
+【必须】确保数据传输安全：
+
+```tsx
+// ✅ 正确 - HTTPS 强制
+// Next.js 配置
+const nextConfig = {
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains; preload'
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff'
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY'
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block'
+          }
+        ],
+      },
+    ];
+  },
+};
+
+// ✅ 正确 - 敏感数据加密
+import CryptoJS from 'crypto-js';
+
+function encryptSensitiveData(data: string, key: string): string {
+  return CryptoJS.AES.encrypt(data, key).toString();
+}
+
+function decryptSensitiveData(encryptedData: string, key: string): string {
+  const bytes = CryptoJS.AES.decrypt(encryptedData, key);
+  return bytes.toString(CryptoJS.enc.Utf8);
+}
+```
+
+## 安全检查清单
+
+【必须】在部署前确认：
+
+- [ ] **输入验证**：所有用户输入都经过验证和清理
+- [ ] **XSS 防护**：使用 CSP，避免 dangerouslySetInnerHTML
+- [ ] **CSRF 防护**：实现 CSRF token 或 SameSite cookie
+- [ ] **认证安全**：使用安全的认证机制，避免明文存储
+- [ ] **HTTPS**：强制使用 HTTPS，设置安全头
+- [ ] **依赖安全**：定期扫描和更新依赖
+- [ ] **敏感数据**：不在客户端存储敏感信息
+- [ ] **错误处理**：不泄露敏感信息到错误消息
+- [ ] **日志安全**：不记录敏感数据到日志
+- [ ] **权限控制**：实现适当的访问控制
+
+## 安全事件响应
+
+【必须】建立响应机制：
+
+```tsx
+// ✅ 正确 - 安全事件记录
+function logSecurityEvent(event: SecurityEvent) {
+  const securityLog = {
+    timestamp: new Date().toISOString(),
+    type: event.type,
+    severity: event.severity,
+    userAgent: navigator.userAgent,
+    ip: event.ip,
+    details: event.details,
+  };
+
+  // 发送到安全监控系统
+  fetch('/api/security/log', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(securityLog),
+  });
+}
+
+// 使用示例
+function handleSuspiciousActivity() {
+  logSecurityEvent({
+    type: 'SUSPICIOUS_LOGIN',
+    severity: 'HIGH',
+    details: 'Multiple failed login attempts',
+  });
+}
+```

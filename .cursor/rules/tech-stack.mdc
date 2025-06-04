@@ -8,12 +8,257 @@ alwaysApply: true
 ## 核心技术栈
 
 【必须】使用最新稳定版本：
-- **框架**: React + TypeScript
-- **样式**: Tailwind CSS + shadcn/ui
+- **框架**: React 18+ + TypeScript 5+
+- **样式**: Tailwind CSS 3+ + shadcn/ui
 - **状态管理**: React Context（小型）/ Zustand（中大型）
-- **路由**: React Router
-- **构建**: Vite
-- **运行时**: Node.js
+- **路由**: React Router 6+
+- **构建**: Vite 5+
+- **运行时**: Node.js 18+ LTS
+
+## 测试框架
+
+【必须】使用完整测试栈：
+- **单元测试**: Vitest + Testing Library
+- **E2E 测试**: Playwright
+- **组件测试**: Storybook
+- **覆盖率**: c8 / Istanbul
+
+```json
+// package.json 测试配置
+{
+  "scripts": {
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test",
+    "storybook": "storybook dev -p 6006"
+  },
+  "devDependencies": {
+    "vitest": "^1.0.0",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/jest-dom": "^6.0.0",
+    "@testing-library/user-event": "^14.0.0",
+    "playwright": "^1.40.0",
+    "storybook": "^7.0.0",
+    "@vitest/coverage-c8": "^0.33.0"
+  }
+}
+```
+
+## 构建和部署工具
+
+【必须】使用现代构建链：
+- **构建工具**: Vite + SWC
+- **包管理**: pnpm（优先）/ yarn / npm
+- **CI/CD**: GitHub Actions / GitLab CI
+- **部署**: Vercel / Netlify / Docker
+- **监控**: Sentry + Web Vitals
+
+```yaml
+# .github/workflows/ci.yml 示例
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      - run: pnpm install
+      - run: pnpm run type-check
+      - run: pnpm run lint
+      - run: pnpm run test:coverage
+      - run: pnpm run build
+```
+
+## 开发工具链
+
+【必须】配置完整开发环境：
+- **代码质量**: ESLint + Prettier + TypeScript
+- **Git 钩子**: Husky + lint-staged
+- **编辑器**: VS Code + 推荐扩展
+- **调试**: React DevTools + Redux DevTools
+
+```json
+// .vscode/extensions.json
+{
+  "recommendations": [
+    "bradlc.vscode-tailwindcss",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "ms-vscode.vscode-typescript-next",
+    "formulahendry.auto-rename-tag",
+    "christian-kohler.path-intellisense"
+  ]
+}
+```
+
+```json
+// package.json 开发工具配置
+{
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint-plugin-react": "^7.33.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-jsx-a11y": "^6.7.0",
+    "prettier": "^3.0.0",
+    "prettier-plugin-tailwindcss": "^0.5.0",
+    "husky": "^8.0.0",
+    "lint-staged": "^15.0.0"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
+    ]
+  }
+}
+```
+
+## 版本兼容性矩阵
+
+【必须】确保版本兼容：
+
+| 工具 | 最低版本 | 推荐版本 | 最新测试版本 |
+|------|----------|----------|--------------|
+| Node.js | 18.0.0 | 18.18.0 LTS | 20.x |
+| React | 18.0.0 | 18.2.0 | 18.2.0 |
+| TypeScript | 5.0.0 | 5.2.0 | 5.3.x |
+| Vite | 4.0.0 | 5.0.0 | 5.x |
+| Tailwind CSS | 3.3.0 | 3.4.0 | 3.4.x |
+| ESLint | 8.0.0 | 8.55.0 | 8.x |
+
+## 数据获取和状态管理
+
+【必须】根据项目规模选择：
+
+### 小型项目（< 10 个组件）
+```tsx
+// React Context + useReducer
+const AppContext = createContext();
+const useAppState = () => useContext(AppContext);
+```
+
+### 中型项目（10-50 个组件）
+```tsx
+// Zustand
+import { create } from 'zustand';
+
+const useStore = create((set) => ({
+  user: null,
+  setUser: (user) => set({ user }),
+}));
+```
+
+### 大型项目（50+ 个组件）
+```tsx
+// Zustand + 持久化 + 中间件
+import { create } from 'zustand';
+import { persist, devtools } from 'zustand/middleware';
+
+const useStore = create(
+  devtools(
+    persist(
+      (set) => ({
+        // 状态定义
+      }),
+      { name: 'app-storage' }
+    )
+  )
+);
+```
+
+## 数据获取策略
+
+【必须】选择合适的数据获取方案：
+
+### REST API
+```tsx
+// TanStack Query (推荐)
+import { useQuery, useMutation } from '@tanstack/react-query';
+
+function useUsers() {
+  return useQuery({
+    queryKey: ['users'],
+    queryFn: () => fetch('/api/users').then(res => res.json())
+  });
+}
+```
+
+### GraphQL
+```tsx
+// Apollo Client 或 urql
+import { useQuery } from '@apollo/client';
+import { GET_USERS } from './queries';
+
+function useUsers() {
+  return useQuery(GET_USERS);
+}
+```
+
+## 样式和 UI 组件
+
+【必须】使用统一 UI 系统：
+- **基础样式**: Tailwind CSS
+- **组件库**: shadcn/ui（推荐）/ Radix UI
+- **图标**: Lucide React / Heroicons
+- **动画**: Framer Motion（可选）
+
+```tsx
+// shadcn/ui 组件使用
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+```
+
+## 类型安全和验证
+
+【必须】确保类型安全：
+- **运行时验证**: Zod
+- **表单验证**: React Hook Form + Zod
+- **API 类型**: 从 OpenAPI 生成或手动定义
+
+```tsx
+// Zod 验证示例
+import { z } from 'zod';
+
+const UserSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  email: z.string().email(),
+});
+
+type User = z.infer<typeof UserSchema>;
+```
+
+## 性能监控
+
+【必须】集成性能监控：
+```tsx
+// Web Vitals 监控
+import { getCLS, getFID, getFCP, getLCP, getTTFB } from 'web-vitals';
+
+function sendToAnalytics(metric) {
+  // 发送到分析服务
+}
+
+getCLS(sendToAnalytics);
+getFID(sendToAnalytics);
+getFCP(sendToAnalytics);
+getLCP(sendToAnalytics);
+getTTFB(sendToAnalytics);
+```
 
 ## 选型原则
 
@@ -23,6 +268,8 @@ alwaysApply: true
 3. **性能影响**: 考虑对应用性能的影响
 4. **团队熟悉度**: 团队掌握程度
 5. **长期维护**: 有长期支持保障
+6. **生态兼容**: 与现有技术栈兼容
+7. **迁移成本**: 考虑未来迁移的复杂度
 
 ## 版本管理
 
@@ -31,3 +278,12 @@ alwaysApply: true
 - 使用语义化版本控制
 - 更新前充分测试
 - 保持技术栈一致性
+- 记录重大版本变更
+
+## 技术债务管理
+
+【必须】定期评估：
+- 每季度审查依赖版本
+- 识别过时或不维护的包
+- 制定技术升级计划
+- 监控安全漏洞并及时修复

@@ -52,28 +52,403 @@ function updateUser(id, params) {
 }
 ```
 
-## 导出类型
+## 泛型使用最佳实践
 
-【必须】遵循：
-- 类型文件使用 `.d.ts` 扩展名
-- 共享类型放在 `types` 目录
-- 组件特定类型与组件同文件
+【必须】合理使用泛型提高代码复用性：
 
 ```tsx
-// ✅ 正确 - types/api.d.ts
-export interface ApiResponse<T> {
+// ✅ 正确 - 基础泛型
+interface ApiResponse<T> {
   data: T;
   status: number;
   message: string;
+  timestamp: string;
 }
 
-// ✅ 正确 - 组件中的类型
-interface ButtonProps {
-  // ...
+interface PaginatedResponse<T> extends ApiResponse<T[]> {
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    hasNext: boolean;
+  };
 }
 
-export function Button(props: ButtonProps) {
-  // ...
+// ✅ 正确 - 泛型约束
+interface Identifiable {
+  id: string;
+}
+
+function updateEntity<T extends Identifiable>(
+  entity: T,
+  updates: Partial<Omit<T, 'id'>>
+): T {
+  return { ...entity, ...updates };
+}
+
+// ✅ 正确 - 条件类型
+type NonNullable<T> = T extends null | undefined ? never : T;
+
+type ApiEndpoint<T> = T extends 'users' 
+  ? '/api/users'
+  : T extends 'posts'
+  ? '/api/posts'
+  : never;
+
+// ✅ 正确 - 映射类型
+type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+
+type CreateUserRequest = Optional<User, 'id'>;
+
+// ✅ 正确 - 工具类型组合
+type UserFormData = Pick<User, 'name' | 'email'> & {
+  password: string;
+  confirmPassword: string;
+};
+
+type UserUpdateData = Partial<Pick<User, 'name' | 'email'>> & {
+  currentPassword?: string;
+  newPassword?: string;
+};
+
+// ✅ 正确 - 泛型 Hook
+function useApi<T>(url: string): {
+  data: T | null;
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(url);
+      const result: ApiResponse<T> = await response.json();
+      setData(result.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  }, [url]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  return { data, loading, error, refetch: fetchData };
+}
+
+// 使用示例
+const { data: users, loading, error } = useApi<User[]>('/api/users');
+```
+
+## 类型守卫和断言
+
+【必须】使用类型守卫确保类型安全：
+
+```tsx
+// ✅ 正确 - 基础类型守卫
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function isNumber(value: unknown): value is number {
+  return typeof value === 'number' && !isNaN(value);
+}
+
+function isUser(value: unknown): value is User {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'id' in value &&
+    'name' in value &&
+    'email' in value &&
+    isString((value as User).id) &&
+    isString((value as User).name) &&
+    isString((value as User).email)
+  );
+}
+
+// ✅ 正确 - 数组类型守卫
+function isUserArray(value: unknown): value is User[] {
+  return Array.isArray(value) && value.every(isUser);
+}
+
+// ✅ 正确 - 联合类型守卫
+type ApiError = {
+  type: 'validation';
+  field: string;
+  message: string;
+} | {
+  type: 'network';
+  code: number;
+  message: string;
+} | {
+  type: 'unknown';
+  message: string;
+};
+
+function isValidationError(error: ApiError): error is Extract<ApiError, { type: 'validation' }> {
+  return error.type === 'validation';
+}
+
+function isNetworkError(error: ApiError): error is Extract<ApiError, { type: 'network' }> {
+  return error.type === 'network';
+}
+
+// ✅ 正确 - 使用类型守卫
+function handleApiResponse(response: unknown) {
+  if (isUser(response)) {
+    // TypeScript 知道 response 是 User 类型
+    console.log(response.name);
+  } else if (isUserArray(response)) {
+    // TypeScript 知道 response 是 User[] 类型
+    response.forEach(user => console.log(user.name));
+  } else {
+    console.error('Invalid response format');
+  }
+}
+
+// ✅ 正确 - 自定义断言函数
+function assertIsUser(value: unknown): asserts value is User {
+  if (!isUser(value)) {
+    throw new Error('Value is not a valid User');
+  }
+}
+
+function processUser(data: unknown) {
+  assertIsUser(data);
+  // TypeScript 知道 data 是 User 类型
+  return data.name.toUpperCase();
+}
+
+// ✅ 正确 - 非空断言的安全使用
+function getUserById(id: string): User | undefined {
+  return users.find(user => user.id === id);
+}
+
+function processUserSafely(id: string) {
+  const user = getUserById(id);
+  if (user) {
+    // 安全的非空断言
+    return user.name.toUpperCase();
+  }
+  throw new Error('User not found');
+}
+
+// ❌ 错误 - 危险的非空断言
+function processUserUnsafely(id: string) {
+  const user = getUserById(id);
+  return user!.name.toUpperCase(); // 可能抛出运行时错误
+}
+```
+
+## tsconfig.json 配置规范
+
+【必须】使用严格的 TypeScript 配置：
+
+```json
+// ✅ 正确 - 严格配置
+{
+  "compilerOptions": {
+    // 基础配置
+    "target": "ES2022",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    // 严格类型检查
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+
+    // 额外检查
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true,
+    "noPropertyAccessFromIndexSignature": true,
+
+    // 路径映射
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@/components/*": ["./src/components/*"],
+      "@/hooks/*": ["./src/hooks/*"],
+      "@/utils/*": ["./src/utils/*"],
+      "@/types/*": ["./src/types/*"]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "next-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    ".next"
+  ]
+}
+```
+
+## 高级类型技巧
+
+【必须】掌握高级类型模式：
+
+```tsx
+// ✅ 正确 - 模板字面量类型
+type EventName<T extends string> = `on${Capitalize<T>}`;
+type ClickEvent = EventName<'click'>; // 'onClick'
+type ChangeEvent = EventName<'change'>; // 'onChange'
+
+// ✅ 正确 - 递归类型
+type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
+
+type DeepRequired<T> = {
+  [P in keyof T]-?: T[P] extends object ? DeepRequired<T[P]> : T[P];
+};
+
+// ✅ 正确 - 函数重载
+interface DatabaseConnection {
+  query(sql: string): Promise<unknown[]>;
+  query<T>(sql: string, parser: (row: unknown) => T): Promise<T[]>;
+  query<T>(sql: string, parser?: (row: unknown) => T): Promise<T[] | unknown[]>;
+}
+
+// ✅ 正确 - 品牌类型
+type UserId = string & { readonly brand: unique symbol };
+type PostId = string & { readonly brand: unique symbol };
+
+function createUserId(id: string): UserId {
+  return id as UserId;
+}
+
+function createPostId(id: string): PostId {
+  return id as PostId;
+}
+
+function getUserPosts(userId: UserId): Promise<Post[]> {
+  // 编译时确保传入正确的 ID 类型
+  return fetch(`/api/users/${userId}/posts`).then(res => res.json());
+}
+
+// ✅ 正确 - 分布式条件类型
+type NonFunctionPropertyNames<T> = {
+  [K in keyof T]: T[K] extends Function ? never : K;
+}[keyof T];
+
+type NonFunctionProperties<T> = Pick<T, NonFunctionPropertyNames<T>>;
+
+// ✅ 正确 - 键值对类型
+type KeyValuePair<T, K extends keyof T = keyof T> = K extends keyof T
+  ? { key: K; value: T[K] }
+  : never;
+
+type UserKeyValue = KeyValuePair<User>; // { key: 'id'; value: string } | { key: 'name'; value: string } | ...
+
+// ✅ 正确 - 状态机类型
+type LoadingState = {
+  status: 'loading';
+  data?: undefined;
+  error?: undefined;
+};
+
+type SuccessState<T> = {
+  status: 'success';
+  data: T;
+  error?: undefined;
+};
+
+type ErrorState = {
+  status: 'error';
+  data?: undefined;
+  error: string;
+};
+
+type AsyncState<T> = LoadingState | SuccessState<T> | ErrorState;
+
+function useAsyncState<T>(): [
+  AsyncState<T>,
+  {
+    setLoading: () => void;
+    setSuccess: (data: T) => void;
+    setError: (error: string) => void;
+  }
+] {
+  const [state, setState] = useState<AsyncState<T>>({ status: 'loading' });
+
+  const setLoading = useCallback(() => {
+    setState({ status: 'loading' });
+  }, []);
+
+  const setSuccess = useCallback((data: T) => {
+    setState({ status: 'success', data });
+  }, []);
+
+  const setError = useCallback((error: string) => {
+    setState({ status: 'error', error });
+  }, []);
+
+  return [state, { setLoading, setSuccess, setError }];
+}
+```
+
+## 导出类型
+
+【必须】分离类型和值导出：
+
+```tsx
+// ✅ 正确
+export interface User {
+  id: string;
+  name: string;
+}
+
+export type UserRole = 'admin' | 'user' | 'guest';
+
+export function createUser(userData: User): Promise<User> {
+  // 实现
+}
+
+// ✅ 正确 - 类型重导出
+export type { User, UserRole } from './types/user';
+export { createUser, updateUser } from './services/userService';
+
+// ✅ 正确 - 命名空间导出
+export namespace UserTypes {
+  export interface CreateRequest {
+    name: string;
+    email: string;
+  }
+  
+  export interface UpdateRequest {
+    name?: string;
+    email?: string;
+  }
+  
+  export type Status = 'active' | 'inactive' | 'pending';
 }
 ```
 
@@ -84,3 +459,110 @@ export function Button(props: ButtonProps) {
 - 使用严格 TypeScript 配置
 - 为复杂类型提供类型守卫
 - 使用泛型提高复用性
+
+```tsx
+// ✅ 正确 - 使用 unknown 替代 any
+function processApiResponse(response: unknown): User | null {
+  if (isUser(response)) {
+    return response;
+  }
+  return null;
+}
+
+// ✅ 正确 - 类型安全的事件处理
+interface FormElements extends HTMLFormControlsCollection {
+  email: HTMLInputElement;
+  password: HTMLInputElement;
+}
+
+interface LoginFormElement extends HTMLFormElement {
+  readonly elements: FormElements;
+}
+
+function handleSubmit(event: FormEvent<LoginFormElement>) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  
+  // 类型安全的表单访问
+  const email = form.elements.email.value;
+  const password = form.elements.password.value;
+  
+  login({ email, password });
+}
+
+// ✅ 正确 - 类型安全的环境变量
+interface EnvironmentVariables {
+  NODE_ENV: 'development' | 'production' | 'test';
+  API_URL: string;
+  DATABASE_URL: string;
+}
+
+function getEnvVar<K extends keyof EnvironmentVariables>(
+  key: K
+): EnvironmentVariables[K] {
+  const value = process.env[key];
+  if (!value) {
+    throw new Error(`Environment variable ${key} is not defined`);
+  }
+  return value as EnvironmentVariables[K];
+}
+
+// 使用示例
+const apiUrl = getEnvVar('API_URL'); // 类型为 string
+const nodeEnv = getEnvVar('NODE_ENV'); // 类型为 'development' | 'production' | 'test'
+```
+
+## 性能优化
+
+【必须】优化 TypeScript 编译性能：
+
+```tsx
+// ✅ 正确 - 使用类型导入
+import type { User, UserRole } from './types/user';
+import { createUser } from './services/userService';
+
+// ✅ 正确 - 避免复杂的递归类型
+// ❌ 错误 - 过度复杂的递归
+type DeepReadonly<T> = {
+  readonly [P in keyof T]: T[P] extends object ? DeepReadonly<T[P]> : T[P];
+};
+
+// ✅ 正确 - 限制递归深度
+type DeepReadonly<T, Depth extends number = 5> = Depth extends 0
+  ? T
+  : {
+      readonly [P in keyof T]: T[P] extends object 
+        ? DeepReadonly<T[P], Prev<Depth>>
+        : T[P];
+    };
+
+type Prev<T extends number> = T extends 5 ? 4
+  : T extends 4 ? 3
+  : T extends 3 ? 2
+  : T extends 2 ? 1
+  : T extends 1 ? 0
+  : never;
+
+// ✅ 正确 - 使用索引签名优化
+interface ApiEndpoints {
+  [K: string]: string;
+  users: '/api/users';
+  posts: '/api/posts';
+  comments: '/api/comments';
+}
+```
+
+## TypeScript 检查清单
+
+【必须】在提交前确认：
+
+- [ ] **严格模式**：启用所有严格类型检查选项
+- [ ] **类型覆盖**：所有函数和变量都有明确类型
+- [ ] **类型守卫**：复杂类型使用类型守卫验证
+- [ ] **泛型约束**：合理使用泛型约束提高类型安全
+- [ ] **工具类型**：充分利用 TypeScript 内置工具类型
+- [ ] **类型导入**：使用 `import type` 导入纯类型
+- [ ] **避免 any**：使用 `unknown` 或具体类型替代 `any`
+- [ ] **枚举替代**：使用联合类型或常量断言替代 enum
+- [ ] **路径映射**：配置合理的路径别名
+- [ ] **编译性能**：避免过度复杂的类型计算
