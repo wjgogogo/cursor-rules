@@ -5,15 +5,15 @@ alwaysApply: false
 ---
 # React 开发规范
 
-本规范定义了 React 开发中的组件定义、Hooks 使用和编程模式。
-
 ## 组件定义
 
-- 使用函数组件和 Hooks，避免使用类组件
-- 使用 TypeScript 定义 Props 和 State 类型
+【必须】遵循：
+- 使用函数组件 + Hooks，避免类组件
+- TypeScript 定义 Props 和 State 类型
+- 命名导出，避免默认导出
 
 ```tsx
-// ✅ 正确示例
+// ✅ 正确
 import { useState } from 'react';
 
 interface ButtonProps {
@@ -37,60 +37,64 @@ export function Button({ label, onClick, variant = 'primary' }: ButtonProps) {
   );
 }
 
-// ❌ 错误示例
+// ❌ 错误
 export default function Button(props) {
-  // 未定义 props 类型
-  // 使用默认导出
-  // ...
+  // 未定义类型，使用默认导出
 }
 ```
 
 ## Hooks 使用
 
-- 自定义 Hooks 名称必须以 `use` 开头
-- 遵循 Hooks 规则，不在条件语句中使用 Hooks
+【必须】遵循：
+- 自定义 Hooks 以 `use` 开头
+- 不在条件语句中使用 Hooks
 - 复杂逻辑封装为自定义 Hooks
 
 ```tsx
-// ✅ 正确示例
+// ✅ 正确
 function useWindowSize() {
   const [size, setSize] = useState({ width: 0, height: 0 });
   
   useEffect(() => {
-    // 实现逻辑
+    function handleResize() {
+      setSize({ width: window.innerWidth, height: window.innerHeight });
+    }
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
   
   return size;
 }
 
-// ❌ 错误示例
+// ❌ 错误
 function getWindowSize() { // 不以 use 开头
   const [size, setSize] = useState({ width: 0, height: 0 });
-  // ...
 }
 ```
 
 ## 编程模式
 
-- 使用函数式和声明式编程模式，避免使用类
-- 优先使用迭代和模块化，避免代码重复
-- 使用描述性变量名和辅助动词（如 `isLoading`, `hasError`）
+【必须】使用：
+- 函数式和声明式编程
+- 描述性变量名（`isLoading`, `hasError`）
+- 迭代和模块化，避免重复
 
 ```tsx
-// ✅ 正确示例 - 函数式编程
-const processUserData = (users: User[]) => 
+// ✅ 正确 - 函数式编程
+const processUsers = (users: User[]) => 
   users
     .filter(user => user.isActive)
     .map(user => ({ ...user, fullName: `${user.firstName} ${user.lastName}` }))
     .sort((a, b) => a.fullName.localeCompare(b.fullName));
 
-// ✅ 正确示例 - 描述性变量名
+// ✅ 正确 - 描述性命名
 const isLoading = false;
 const hasError = false;
 const shouldShowModal = true;
 
-// ❌ 错误示例 - 命令式编程
-function processUserData(users) {
+// ❌ 错误 - 命令式编程
+function processUsers(users) {
   let result = [];
   for (let i = 0; i < users.length; i++) {
     if (users[i].isActive) {

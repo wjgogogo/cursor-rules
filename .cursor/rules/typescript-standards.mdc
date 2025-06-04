@@ -5,17 +5,16 @@ alwaysApply: false
 ---
 # TypeScript 规范
 
-本规范定义了 TypeScript 开发中的类型定义和导出规范。
-
 ## 类型定义
 
+【必须】遵循：
 - 为所有变量、函数参数和返回值定义类型
-- **优先使用接口（`interface`）定义对象结构**，类型别名（`type`）用于联合类型或工具类型
-- **禁止使用 `enum`，使用 maps 的方式替代**
-- 使用 TypeScript 工具类型（如 `Partial<T>`, `Readonly<T>`, `Pick<T, K>`）
+- **优先使用 `interface` 定义对象结构**
+- **禁止使用 `enum`，使用 maps 替代**
+- 使用 TypeScript 工具类型（`Partial<T>`, `Pick<T, K>` 等）
 
 ```tsx
-// ✅ 正确示例 - 接口优先
+// ✅ 正确 - interface 优先
 interface User {
   id: string;
   name: string;
@@ -29,26 +28,25 @@ interface UserCardProps {
   className?: string;
 }
 
-// ✅ 正确示例 - 函数组件与接口结合
 function UserCard({ user, onEdit, className }: UserCardProps) {
-  // 组件实现
+  // 实现
 }
 
-// ✅ 正确示例 - 类型别名用于联合类型
+// ✅ 正确 - type 用于联合类型
 type UserUpdateParams = Partial<Omit<User, 'id'>>;
 type Theme = 'light' | 'dark' | 'auto';
 
 function updateUser(id: string, params: UserUpdateParams): Promise<User> {
-  // 实现逻辑
+  // 实现
 }
 
-// ❌ 错误示例 - 对象结构使用 type
+// ❌ 错误 - 对象结构使用 type
 type User = {  // 应使用 interface
   id: string;
   name: string;
 }
 
-// ❌ 错误示例 - 未定义类型
+// ❌ 错误 - 未定义类型
 function updateUser(id, params) {
   // 未定义类型
 }
@@ -56,19 +54,20 @@ function updateUser(id, params) {
 
 ## 导出类型
 
-- 类型定义文件使用 `.d.ts` 扩展名
-- 共享类型定义放在 `types` 目录下
-- 组件特定类型与组件放在同一文件中
+【必须】遵循：
+- 类型文件使用 `.d.ts` 扩展名
+- 共享类型放在 `types` 目录
+- 组件特定类型与组件同文件
 
 ```tsx
-// ✅ 正确示例 - types/api.d.ts
+// ✅ 正确 - types/api.d.ts
 export interface ApiResponse<T> {
   data: T;
   status: number;
   message: string;
 }
 
-// ✅ 正确示例 - 组件中的类型
+// ✅ 正确 - 组件中的类型
 interface ButtonProps {
   // ...
 }
@@ -78,9 +77,10 @@ export function Button(props: ButtonProps) {
 }
 ```
 
-## 类型安全最佳实践
+## 类型安全
 
-- 避免使用 `any` 类型，使用 `unknown` 替代
-- 使用严格的 TypeScript 配置
+【必须】遵循：
+- 避免 `any`，使用 `unknown` 替代
+- 使用严格 TypeScript 配置
 - 为复杂类型提供类型守卫
-- 使用泛型提高代码复用性
+- 使用泛型提高复用性

@@ -5,15 +5,12 @@ alwaysApply: false
 ---
 # 性能优化规范
 
-本规范定义了 React 应用的性能优化最佳实践。
-
 ## Suspense 和错误边界
 
-- 将客户端组件用 Suspense 包装并提供 fallback
-- 为异步组件提供加载状态
+【必须】为客户端组件提供 fallback：
 
 ```tsx
-// ✅ 正确示例
+// ✅ 正确
 function App() {
   return (
     <Suspense fallback={<LoadingSpinner />}>
@@ -33,11 +30,10 @@ function LoadingSpinner() {
 
 ## 动态加载
 
-- 对非关键组件使用动态加载
-- 延迟加载重型组件
+【必须】对非关键组件使用懒加载：
 
 ```tsx
-// ✅ 正确示例 - 动态加载
+// ✅ 正确
 import { lazy, Suspense } from 'react';
 
 const HeavyChart = lazy(() => import('./HeavyChart'));
@@ -56,12 +52,10 @@ function Dashboard() {
 
 ## 内存优化
 
-- 正确清理 useEffect 中的副作用
-- 移除事件监听器和定时器
-- 避免内存泄漏
+【必须】清理副作用，防止内存泄漏：
 
 ```tsx
-// ✅ 正确示例 - 内存清理
+// ✅ 正确
 function WindowSizeTracker() {
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
 
@@ -84,12 +78,12 @@ function WindowSizeTracker() {
   return <div>{windowSize.width} x {windowSize.height}</div>;
 }
 
-// ❌ 错误示例 - 未清理副作用
+// ❌ 错误 - 未清理定时器
 function BadTimer() {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    setInterval(() => { // 内存泄漏：未清理定时器
+    setInterval(() => { // 内存泄漏
       setCount(prev => prev + 1);
     }, 1000);
   }, []);
@@ -100,18 +94,10 @@ function BadTimer() {
 
 ## 渲染优化
 
-- 最小化 `useEffect` 和 `useState` 的使用
-- 使用 React.memo 防止不必要的重新渲染
-- 合理使用 useMemo 和 useCallback
-- 实现虚拟化长列表
+【必须】合理使用优化 Hooks：
 
 ```tsx
-// ✅ 正确示例 - React.memo 优化
-interface UserCardProps {
-  user: User;
-  onEdit: (user: User) => void;
-}
-
+// ✅ 正确 - React.memo
 const UserCard = React.memo(function UserCard({ user, onEdit }: UserCardProps) {
   return (
     <div className="card">
@@ -121,14 +107,12 @@ const UserCard = React.memo(function UserCard({ user, onEdit }: UserCardProps) {
   );
 });
 
-// ✅ 正确示例 - useMemo 和 useCallback 优化
+// ✅ 正确 - useMemo 和 useCallback
 function UserList({ users, onUserEdit }: { users: User[]; onUserEdit: (user: User) => void }) {
-  // 缓存计算结果
   const sortedUsers = useMemo(() => {
     return users.sort((a, b) => a.name.localeCompare(b.name));
   }, [users]);
 
-  // 缓存回调函数
   const handleUserEdit = useCallback((user: User) => {
     onUserEdit(user);
   }, [onUserEdit]);
@@ -136,25 +120,19 @@ function UserList({ users, onUserEdit }: { users: User[]; onUserEdit: (user: Use
   return (
     <div>
       {sortedUsers.map(user => (
-        <UserCard 
-          key={user.id} 
-          user={user} 
-          onEdit={handleUserEdit}
-        />
+        <UserCard key={user.id} user={user} onEdit={handleUserEdit} />
       ))}
     </div>
   );
 }
 ```
 
-## 网络性能优化
+## 网络优化
 
-- 实现请求去重和缓存
-- 控制并发请求数量
-- 使用合理的重试机制
+【必须】实现请求去重：
 
 ```tsx
-// ✅ 正确示例 - 请求去重
+// ✅ 正确
 const requestCache = new Map<string, Promise<any>>();
 
 function fetchWithDeduplication<T>(url: string): Promise<T> {
@@ -165,7 +143,6 @@ function fetchWithDeduplication<T>(url: string): Promise<T> {
   const promise = fetch(url)
     .then(response => response.json())
     .finally(() => {
-      // 请求完成后清除缓存
       requestCache.delete(url);
     });
 
@@ -176,12 +153,10 @@ function fetchWithDeduplication<T>(url: string): Promise<T> {
 
 ## 用户交互优化
 
-- 实现防抖和节流
-- 优化表单性能
-- 减少布局抖动
+【必须】实现防抖：
 
 ```tsx
-// ✅ 正确示例 - 防抖 Hook
+// ✅ 正确 - 防抖 Hook
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
@@ -190,15 +165,13 @@ function useDebounce<T>(value: T, delay: number): T {
       setDebouncedValue(value);
     }, delay);
 
-    return () => {
-      clearTimeout(handler);
-    };
+    return () => clearTimeout(handler);
   }, [value, delay]);
 
   return debouncedValue;
 }
 
-// ✅ 正确示例 - 搜索组件使用防抖
+// ✅ 正确 - 搜索防抖
 function SearchInput({ onSearch }: { onSearch: (query: string) => void }) {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 300);
@@ -221,18 +194,15 @@ function SearchInput({ onSearch }: { onSearch: (query: string) => void }) {
 }
 ```
 
-## Bundle 和构建优化
+## 代码分割
 
-- 实现有效的代码分割
-- 优化依赖和 Tree-shaking
-- 分析和优化包体积
+【必须】按路由分割：
 
 ```tsx
-// ✅ 正确示例 - 路由级代码分割
+// ✅ 正确
 import { lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 
-// 按路由分割代码
 const Home = lazy(() => import('./pages/Home'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Settings = lazy(() => import('./pages/Settings'));

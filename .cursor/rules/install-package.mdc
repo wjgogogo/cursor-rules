@@ -5,118 +5,92 @@ alwaysApply: false
 ---
 # npm 包安装规范
 
-本项目使用 pnpm 作为包管理器，并通过 workspace 功能管理多个子包。请严格遵循以下规范进行包的安装和管理。
+## 安装要求
 
-## pnpm 基本使用
+【必须】遵循：
+- 优先使用 pnpm，其次 yarn，再次 npm
+- 锁定依赖版本，禁止使用 latest
+- 全局依赖需说明理由
 
-### 全局安装 pnpm
+## 示例
 
-如果尚未安装 pnpm，请先全局安装：
-
-```bash
-npm install -g pnpm
+```sh
+# ✅ 正确
+pnpm add react@18.2.0
+npm install axios@1.6.0
 ```
 
-### 初始安装项目依赖
+## Monorepo Workspace 管理
 
-初次克隆项目后，在根目录执行：
+### 工作区配置
 
-```bash
-pnpm install
-```
+【必须】在根目录配置工作区：
 
-## Workspace 结构
+```json
+// package.json
+{
+  "name": "my-monorepo",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ]
+}
 
-项目的 workspace 配置位于 @pnpm-workspace.yaml，当前包含：
-
-```yaml
+// pnpm-workspace.yaml (pnpm)
 packages:
   - 'packages/*'
+  - 'apps/*'
 ```
 
-这表示 `packages` 目录下的所有子目录都被视为独立的包。
+### 依赖安装策略
 
-## 添加依赖
+【必须】遵循：
+- **根依赖**：开发工具、构建工具安装在根目录
+- **共享依赖**：多个包使用的依赖安装在根目录
+- **特定依赖**：只有单个包使用的依赖安装在对应包内
 
-### 添加根项目依赖
+```sh
+# ✅ 正确 - 根目录安装开发依赖
+pnpm add -w -D typescript@5.0.0 eslint@8.0.0
 
-在根目录添加所有子包共享的开发依赖：
+# ✅ 正确 - 根目录安装共享依赖
+pnpm add -w react@18.2.0 react-dom@18.2.0
 
-```bash
-pnpm add -Dw <package-name>  # 开发依赖
-pnpm add -w <package-name>   # 生产依赖
+# ✅ 正确 - 特定包安装依赖
+pnpm add --filter @my-app/web axios@1.6.0
+pnpm add --filter @my-lib/utils lodash@4.17.21
+
+# ✅ 正确 - 为所有包安装相同依赖
+pnpm add -r typescript@5.0.0
 ```
 
-### 添加子包依赖
+### 版本管理
 
-在特定子包中添加依赖：
+【必须】保持版本一致：
+- 使用 `pnpm list` 检查依赖版本
+- 共享依赖在所有包中使用相同版本
+- 使用 `syncpack` 工具同步版本
 
-```bash
-pnpm --filter <package-name> add <dependency-name>
+```sh
+# ✅ 正确 - 检查依赖版本
+pnpm list --depth=0
+pnpm list --filter @my-app/web
+
+# ✅ 正确 - 同步版本
+npx syncpack list-mismatches
+npx syncpack fix-mismatches
 ```
 
-例如，为 server 添加依赖：
+### 内部包引用
 
-```bash
-pnpm --filter server add express
+【必须】使用 workspace 协议：
+
+```json
+// packages/web/package.json
+{
+  "dependencies": {
+    "@my-lib/utils": "workspace:*",
+    "@my-lib/components": "workspace:^1.0.0"
+  }
+}
 ```
-
-### 子包之间的依赖关系
-
-如果一个子包需要依赖另一个子包：
-
-```bash
-pnpm --filter <target-package> add <source-package>@workspace
-```
-
-例如，如果 server 需要依赖 compatible-server：
-
-```bash
-pnpm --filter server add compatible-server@workspace
-```
-
-## 更新依赖
-
-### 更新所有依赖
-
-```bash
-pnpm update
-```
-
-### 更新特定子包的依赖
-
-```bash
-pnpm --filter <package-name> update
-```
-
-## 运行脚本
-
-### 运行根项目脚本
-
-```bash
-pnpm <script-name>
-```
-
-### 运行子包脚本
-
-```bash
-pnpm --filter <package-name> <script-name>
-```
-
-例如，启动 server：
-
-```bash
-pnpm --filter server start
-```
-
-## 最佳实践
-1. **保持依赖一致性**：尽量在根项目中定义共享依赖
-2. **指定版本**：添加依赖时指定确切版本或合理的版本范围
-3. **定期更新**：定期更新依赖以修复安全问题
-4. **避免重复依赖**：利用 workspace 特性避免子包之间的重复依赖
-5. **使用 workspace 协议**：子包之间引用使用 `workspace:` 或 `workspace:*` 协议
-
-## 禁止事项
-1. **禁止使用 npm/yarn**：不要在项目中混用包管理器
-2. **禁止全局安装工具包**：项目工具应作为开发依赖安装
-3. **禁止手动修改 pnpm-lock.yaml**：锁文件应由 pnpm 自动管理

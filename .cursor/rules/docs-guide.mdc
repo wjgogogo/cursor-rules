@@ -1,7 +1,7 @@
 ---
-description: 文档书写规范
+description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 # 文档书写规范
 

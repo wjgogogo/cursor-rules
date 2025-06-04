@@ -5,17 +5,16 @@ alwaysApply: false
 ---
 # 样式规范
 
-本规范定义了使用 Tailwind CSS 和 shadcn/ui 的样式开发规范。
-
 ## Tailwind CSS
 
+【必须】遵循：
 - 优先使用 Tailwind 原子类
-- 复杂组件使用 `@apply` 指令组合样式
-- **严格遵循移动优先的响应式设计原则**
-- 实现响应式设计时使用 Tailwind CSS 的断点系统
+- 复杂组件使用 `@apply` 指令
+- **严格遵循移动优先响应式设计**
+- 使用 Tailwind 断点系统：`sm:` `md:` `lg:` `xl:` `2xl:`
 
 ```tsx
-// ✅ 正确示例 - 移动优先响应式设计
+// ✅ 正确 - 移动优先响应式
 <div className="
   flex flex-col gap-4 p-4
   sm:gap-6 sm:p-6
@@ -23,42 +22,34 @@ alwaysApply: false
   lg:gap-12 lg:p-12
   text-gray-800 dark:text-gray-200
 ">
-  <div className="
-    w-full
-    md:w-1/3
-    lg:w-1/4
-  ">
-    {/* 侧边栏内容 */}
+  <div className="w-full md:w-1/3 lg:w-1/4">
+    {/* 侧边栏 */}
   </div>
-  <div className="
-    w-full
-    md:w-2/3
-    lg:w-3/4
-  ">
-    {/* 主要内容 */}
+  <div className="w-full md:w-2/3 lg:w-3/4">
+    {/* 主内容 */}
   </div>
 </div>
 
-// ❌ 错误示例 - 混合使用内联样式和 Tailwind
+// ❌ 错误 - 混合内联样式
 <div className="flex" style={{ padding: '1rem', gap: '0.5rem' }}>
   {/* 内容 */}
 </div>
 
-// ❌ 错误示例 - 桌面优先设计
-<div className="
-  flex-row lg:flex-col  // 错误：应该是移动优先
-  p-8 sm:p-4           // 错误：应该从小到大
-">
+// ❌ 错误 - 桌面优先
+<div className="flex-row lg:flex-col p-8 sm:p-4">
+  {/* 应该从小到大 */}
+</div>
 ```
 
 ## shadcn/ui
 
-- 使用 shadcn/ui 组件库作为 UI 基础
+【必须】遵循：
+- 使用 shadcn/ui 作为 UI 基础
 - 遵循组件文档，避免过度自定义
-- 使用 Tailwind 对组件进行微调
+- 使用 Tailwind 微调组件
 
 ```tsx
-// ✅ 正确示例
+// ✅ 正确
 import { Button } from "@/components/ui/button";
 
 function MyComponent() {
@@ -72,12 +63,13 @@ function MyComponent() {
 
 ## 主题和暗模式
 
-- 使用 Tailwind 的 `dark:` 前缀支持暗模式
-- 颜色使用 CSS 变量，避免硬编码颜色值
-- 遵循设计系统中定义的颜色和间距
+【必须】遵循：
+- 使用 `dark:` 前缀支持暗模式
+- 颜色使用 CSS 变量，避免硬编码
+- 遵循设计系统颜色和间距
 
-## 响应式设计原则
+## 响应式原则
 
-- 移动优先：从小屏幕开始设计，逐步增强
-- 使用 Tailwind 的断点系统：`sm:`, `md:`, `lg:`, `xl:`, `2xl:`
-- 确保在所有设备上的可用性和可访问性
+【必须】遵循：
+- **移动优先**：从小屏开始，逐步增强
+- 确保所有设备可用性和可访问性
