@@ -9,7 +9,6 @@
 ## 规则概览
 
 ### 📋 核心规范
-- **[代码质量规范](/.cursor/rules/code-quality.mdc)** - 代码示例要求、质量标准和检查清单
 - **[命名规范](/.cursor/rules/naming-conventions.mdc)** - 文件、变量、函数、组件的命名约定
 - **[模块导出规范](/.cursor/rules/module-exports.mdc)** - 模块导入导出的最佳实践
 
@@ -51,7 +50,6 @@
 ### 引用规则示例
 
 ```
-@code-quality 检查我的代码质量
 @naming-conventions 帮我优化变量命名
 @react-standards 这个组件是否符合规范？
 @security-standards 检查安全漏洞
@@ -60,14 +58,6 @@
 ```
 
 ## 规则详细说明
-
-### 代码质量规范 (`code-quality.mdc`)
-
-确保代码示例的可执行性和质量标准：
-- **代码示例要求**：语法正确、包含完整导入、TypeScript 类型准确
-- **质量要求**：正确性、时效性、功能完整、安全性、可读性优先
-- **完整性原则**：禁止 TODO、功能缺失，必须引用具体文件名
-- **质量工具**：ESLint、Prettier、TypeScript、Husky + lint-staged
 
 ### 命名规范 (`naming-conventions.mdc`)
 
@@ -215,4 +205,3 @@ AI 编程助手的工作模式约束：
 - **各模式约束**：明确的权限和禁止事项
 - **切换信号**：仅在明确信号时切换
 - **偏离处理**：发现偏离立即返回 PLAN 模式
-

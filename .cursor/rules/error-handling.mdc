@@ -1,943 +1,140 @@
 ---
-description:
-globs:
-alwaysApply: false
+description: 
+globs: 
+alwaysApply: true
 ---
 # 错误处理规范
 
-## 统一错误处理策略
+## 核心原则 [P0]
 
-【必须】建立分层错误处理机制：
+【必须】建立统一的错误处理策略：
+- 分层错误处理：组件级 → 页面级 → 应用级
+- 用户友好的错误提示
+- 完整的错误日志记录
+- 优雅的错误恢复机制
+
+## 错误类型定义 [P0]
+
+【必须】使用统一的错误类型：
 
 ```tsx
-// ✅ 正确 - 错误类型定义
-interface BaseError {
+interface AppError {
+  type: 'validation' | 'network' | 'business' | 'system';
   code: string;
   message: string;
   timestamp: string;
-  requestId?: string;
 }
 
-interface ValidationError extends BaseError {
-  type: 'validation';
-  field: string;
-  value: unknown;
-}
+// 快速创建错误
+const createError = (type: AppError['type'], code: string, message: string): AppError => ({
+  type,
+  code,
+  message,
+  timestamp: new Date().toISOString(),
+});
+```
 
-interface NetworkError extends BaseError {
-  type: 'network';
-  status: number;
-  url: string;
-}
+## API 错误处理 [P0]
 
-interface BusinessError extends BaseError {
-  type: 'business';
-  context?: Record<string, unknown>;
-}
+【必须】统一处理 API 错误：
 
-interface SystemError extends BaseError {
-  type: 'system';
-  stack?: string;
-}
-
-type AppError = ValidationError | NetworkError | BusinessError | SystemError;
-
-// ✅ 正确 - 错误工厂
-class ErrorFactory {
-  static validation(field: string, message: string, value: unknown): ValidationError {
-    return {
-      type: 'validation',
-      code: 'VALIDATION_ERROR',
-      message,
-      field,
-      value,
-      timestamp: new Date().toISOString(),
-    };
-  }
-
-  static network(status: number, url: string, message: string): NetworkError {
-    return {
-      type: 'network',
-      code: `NETWORK_${status}`,
-      message,
-      status,
-      url,
-      timestamp: new Date().toISOString(),
-    };
-  }
-
-  static business(code: string, message: string, context?: Record<string, unknown>): BusinessError {
-    return {
-      type: 'business',
-      code,
-      message,
-      context,
-      timestamp: new Date().toISOString(),
-    };
-  }
-
-  static system(code: string, message: string, error?: Error): SystemError {
-    return {
-      type: 'system',
-      code,
-      message,
-      stack: error?.stack,
-      timestamp: new Date().toISOString(),
-    };
-  }
-}
-
-// ✅ 正确 - 错误处理器
-class ErrorHandler {
-  private static instance: ErrorHandler;
-  private errorReporters: Array<(error: AppError) => void> = [];
-
-  static getInstance(): ErrorHandler {
-    if (!ErrorHandler.instance) {
-      ErrorHandler.instance = new ErrorHandler();
-    }
-    return ErrorHandler.instance;
-  }
-
-  addReporter(reporter: (error: AppError) => void): void {
-    this.errorReporters.push(reporter);
-  }
-
-  handle(error: AppError): void {
-    // 记录错误
-    this.log(error);
+```tsx
+async function apiRequest<T>(url: string, options?: RequestInit): Promise<T> {
+  try {
+    const response = await fetch(url, options);
     
-    // 上报错误
-    this.report(error);
+    if (!response.ok) {
+      throw createError('network', `HTTP_${response.status}`, `请求失败: ${response.statusText}`);
+    }
     
-    // 用户通知
-    this.notify(error);
-  }
-
-  private log(error: AppError): void {
-    const logLevel = this.getLogLevel(error);
-    console[logLevel](`[${error.type.toUpperCase()}] ${error.code}: ${error.message}`, error);
-  }
-
-  private report(error: AppError): void {
-    this.errorReporters.forEach(reporter => {
-      try {
-        reporter(error);
-      } catch (reportError) {
-        console.error('Error reporter failed:', reportError);
-      }
-    });
-  }
-
-  private notify(error: AppError): void {
-    const userMessage = this.getUserMessage(error);
-    // 显示用户友好的错误消息
-    showToast(userMessage, 'error');
-  }
-
-  private getLogLevel(error: AppError): 'error' | 'warn' | 'info' {
-    switch (error.type) {
-      case 'system':
-        return 'error';
-      case 'network':
-        return error.status >= 500 ? 'error' : 'warn';
-      case 'business':
-        return 'warn';
-      case 'validation':
-        return 'info';
-      default:
-        return 'error';
+    return response.json();
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw createError('network', 'NETWORK_ERROR', '网络连接失败');
     }
-  }
-
-  private getUserMessage(error: AppError): string {
-    switch (error.type) {
-      case 'validation':
-        return `请检查${error.field}字段：${error.message}`;
-      case 'network':
-        return error.status >= 500 
-          ? '服务器暂时无法响应，请稍后重试'
-          : '网络请求失败，请检查网络连接';
-      case 'business':
-        return error.message;
-      case 'system':
-        return '系统出现异常，我们正在处理中';
-      default:
-        return '发生未知错误，请联系技术支持';
-    }
+    throw error;
   }
 }
 ```
 
-## API 错误处理
+## 全局错误处理 [P1]
 
-【必须】统一 API 错误处理：
+【必须】设置全局错误处理器：
 
 ```tsx
-// ✅ 正确 - API 客户端错误处理
-class ApiClient {
-  private baseURL: string;
-  private errorHandler: ErrorHandler;
+// 在应用根组件中设置
+function setupGlobalErrorHandlers() {
+  // 未捕获的 Promise 错误
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('未处理的 Promise 错误:', event.reason);
+    // 上报错误到监控系统
+  });
 
-  constructor(baseURL: string) {
-    this.baseURL = baseURL;
-    this.errorHandler = ErrorHandler.getInstance();
-  }
-
-  async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
-    
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
-      });
-
-      if (!response.ok) {
-        throw await this.handleHttpError(response, url);
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      if (error instanceof Error && error.name === 'TypeError') {
-        // 网络错误
-        const networkError = ErrorFactory.network(0, url, '网络连接失败');
-        this.errorHandler.handle(networkError);
-        throw networkError;
-      }
-      
-      if (error instanceof AppError) {
-        this.errorHandler.handle(error);
-        throw error;
-      }
-
-      // 未知错误
-      const systemError = ErrorFactory.system(
-        'UNKNOWN_ERROR',
-        '未知错误',
-        error as Error
-      );
-      this.errorHandler.handle(systemError);
-      throw systemError;
-    }
-  }
-
-  private async handleHttpError(response: Response, url: string): Promise<AppError> {
-    const status = response.status;
-    
-    try {
-      const errorData = await response.json();
-      
-      if (status === 400 && errorData.field) {
-        return ErrorFactory.validation(
-          errorData.field,
-          errorData.message,
-          errorData.value
-        );
-      }
-      
-      if (status >= 400 && status < 500) {
-        return ErrorFactory.business(
-          errorData.code || `HTTP_${status}`,
-          errorData.message || response.statusText
-        );
-      }
-      
-      return ErrorFactory.network(status, url, errorData.message || response.statusText);
-    } catch {
-      return ErrorFactory.network(status, url, response.statusText);
-    }
-  }
-}
-
-// ✅ 正确 - API Hook 错误处理
-function useApiCall<T>(
-  apiCall: () => Promise<T>,
-  dependencies: unknown[] = []
-): {
-  data: T | null;
-  loading: boolean;
-  error: AppError | null;
-  retry: () => void;
-} {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<AppError | null>(null);
-
-  const execute = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const result = await apiCall();
-      setData(result);
-    } catch (err) {
-      if (err instanceof AppError) {
-        setError(err);
-      } else {
-        const systemError = ErrorFactory.system(
-          'API_CALL_ERROR',
-          'API 调用失败',
-          err as Error
-        );
-        setError(systemError);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, dependencies);
-
-  useEffect(() => {
-    execute();
-  }, [execute]);
-
-  return { data, loading, error, retry: execute };
+  // 未捕获的 JavaScript 错误
+  window.addEventListener('error', (event) => {
+    console.error('JavaScript 错误:', event.error);
+    // 上报错误到监控系统
+  });
 }
 ```
 
-## React 错误边界
+## 错误日志记录 [P1]
 
-【必须】使用错误边界捕获组件错误：
+【必须】记录错误详情：
 
 ```tsx
-// ✅ 正确 - 错误边界组件
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
-  errorInfo: ErrorInfo | null;
-}
-
-interface ErrorBoundaryProps {
-  children: ReactNode;
-  fallback?: ComponentType<{ error: Error; retry: () => void }>;
-  onError?: (error: Error, errorInfo: ErrorInfo) => void;
-}
-
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  private retryTimeoutId: NodeJS.Timeout | null = null;
-
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = {
-      hasError: false,
-      error: null,
-      errorInfo: null,
-    };
-  }
-
-  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
-    return {
-      hasError: true,
-      error,
-    };
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    this.setState({ errorInfo });
-
-    // 记录错误
-    const systemError = ErrorFactory.system(
-      'REACT_ERROR_BOUNDARY',
-      error.message,
-      error
-    );
-    
-    ErrorHandler.getInstance().handle(systemError);
-
-    // 调用外部错误处理器
-    this.props.onError?.(error, errorInfo);
-  }
-
-  componentWillUnmount() {
-    if (this.retryTimeoutId) {
-      clearTimeout(this.retryTimeoutId);
-    }
-  }
-
-  retry = () => {
-    this.setState({
-      hasError: false,
-      error: null,
-      errorInfo: null,
-    });
+function logError(error: AppError, context?: Record<string, any>) {
+  const logData = {
+    ...error,
+    context,
+    url: window.location.href,
+    userAgent: navigator.userAgent,
   };
 
-  render() {
-    if (this.state.hasError) {
-      const FallbackComponent = this.props.fallback || DefaultErrorFallback;
-      return (
-        <FallbackComponent 
-          error={this.state.error!} 
-          retry={this.retry}
-        />
-      );
-    }
-
-    return this.props.children;
+  // 开发环境：控制台输出
+  if (process.env.NODE_ENV === 'development') {
+    console.error('Error:', logData);
   }
-}
 
-// ✅ 正确 - 默认错误回退组件
-function DefaultErrorFallback({ error, retry }: { error: Error; retry: () => void }) {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[200px] p-6 bg-red-50 border border-red-200 rounded-lg">
-      <div className="text-red-600 mb-4">
-        <AlertCircle className="w-12 h-12" />
-      </div>
-      <h3 className="text-lg font-semibold text-red-800 mb-2">
-        出现了一些问题
-      </h3>
-      <p className="text-red-600 text-center mb-4 max-w-md">
-        {process.env.NODE_ENV === 'development' 
-          ? error.message 
-          : '页面加载失败，请尝试刷新页面'
-        }
-      </p>
-      <div className="flex gap-2">
-        <Button variant="outline" onClick={retry}>
-          重试
-        </Button>
-        <Button variant="outline" onClick={() => window.location.reload()}>
-          刷新页面
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ✅ 正确 - 特定功能错误边界
-function FeatureErrorBoundary({ children, featureName }: { 
-  children: ReactNode; 
-  featureName: string;
-}) {
-  return (
-    <ErrorBoundary
-      fallback={({ error, retry }) => (
-        <div className="p-4 border border-yellow-200 bg-yellow-50 rounded-lg">
-          <h4 className="font-medium text-yellow-800 mb-2">
-            {featureName} 暂时不可用
-          </h4>
-          <p className="text-yellow-600 text-sm mb-3">
-            该功能遇到了问题，您可以尝试重新加载或继续使用其他功能。
-          </p>
-          <Button size="sm" variant="outline" onClick={retry}>
-            重新加载
-          </Button>
-        </div>
-      )}
-      onError={(error, errorInfo) => {
-        const systemError = ErrorFactory.system(
-          'FEATURE_ERROR',
-          `${featureName} 功能错误: ${error.message}`,
-          error
-        );
-        ErrorHandler.getInstance().handle(systemError);
-      }}
-    >
-      {children}
-    </ErrorBoundary>
-  );
+  // 生产环境：发送到监控服务
+  if (process.env.NODE_ENV === 'production') {
+    // 发送到 Sentry、LogRocket 等服务
+  }
 }
 ```
 
-## 异步错误处理
+## 重试机制 [P2]
 
-【必须】正确处理异步操作错误：
+【推荐】为网络请求添加重试：
 
 ```tsx
-// ✅ 正确 - Promise 错误处理
-async function safeAsyncOperation<T>(
-  operation: () => Promise<T>,
-  fallback?: T
-): Promise<T | null> {
-  try {
-    return await operation();
-  } catch (error) {
-    const systemError = ErrorFactory.system(
-      'ASYNC_OPERATION_ERROR',
-      '异步操作失败',
-      error as Error
-    );
-    ErrorHandler.getInstance().handle(systemError);
-    return fallback ?? null;
-  }
-}
-
-// ✅ 正确 - 重试机制
 async function withRetry<T>(
   operation: () => Promise<T>,
-  maxRetries: number = 3,
-  delay: number = 1000
+  maxRetries: number = 3
 ): Promise<T> {
-  let lastError: Error;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  for (let i = 0; i <= maxRetries; i++) {
     try {
       return await operation();
     } catch (error) {
-      lastError = error as Error;
-      
-      if (attempt === maxRetries) {
-        break;
-      }
-
-      // 指数退避
-      const waitTime = delay * Math.pow(2, attempt - 1);
-      await new Promise(resolve => setTimeout(resolve, waitTime));
+      if (i === maxRetries) throw error;
+      await new Promise(resolve => setTimeout(resolve, 1000 * i));
     }
   }
-
-  const systemError = ErrorFactory.system(
-    'RETRY_EXHAUSTED',
-    `操作失败，已重试 ${maxRetries} 次`,
-    lastError!
-  );
-  ErrorHandler.getInstance().handle(systemError);
-  throw systemError;
-}
-
-// ✅ 正确 - 超时处理
-function withTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  timeoutMessage: string = '操作超时'
-): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) => {
-      setTimeout(() => {
-        const timeoutError = ErrorFactory.system(
-          'OPERATION_TIMEOUT',
-          timeoutMessage
-        );
-        reject(timeoutError);
-      }, timeoutMs);
-    }),
-  ]);
-}
-
-// ✅ 正确 - 并发错误处理
-async function safePromiseAll<T>(
-  promises: Promise<T>[],
-  continueOnError: boolean = false
-): Promise<Array<T | AppError>> {
-  if (continueOnError) {
-    return Promise.allSettled(promises).then(results =>
-      results.map(result => {
-        if (result.status === 'fulfilled') {
-          return result.value;
-        } else {
-          return ErrorFactory.system(
-            'PROMISE_REJECTED',
-            '并发操作失败',
-            result.reason
-          );
-        }
-      })
-    );
-  } else {
-    try {
-      return await Promise.all(promises);
-    } catch (error) {
-      const systemError = ErrorFactory.system(
-        'PROMISE_ALL_FAILED',
-        '并发操作失败',
-        error as Error
-      );
-      ErrorHandler.getInstance().handle(systemError);
-      throw systemError;
-    }
-  }
+  throw new Error('重试次数已用完');
 }
 ```
 
-## 表单错误处理
+## 🔍 检查清单
 
-【必须】统一表单验证错误处理：
+### 核心要求 [P0]
+- [ ] **错误捕获**：关键功能都有错误处理
+- [ ] **用户提示**：错误信息对用户友好
+- [ ] **错误边界**：组件错误不会崩溃整个应用
 
-```tsx
-// ✅ 正确 - 表单错误状态
-interface FormError {
-  field: string;
-  message: string;
-  type: 'required' | 'format' | 'length' | 'custom';
-}
+### 质量提升 [P1]
+- [ ] **日志记录**：错误信息完整记录
+- [ ] **全局处理**：设置全局错误处理器
 
-interface FormState<T> {
-  data: T;
-  errors: FormError[];
-  isSubmitting: boolean;
-  isValid: boolean;
-}
-
-function useFormWithErrorHandling<T extends Record<string, any>>(
-  initialData: T,
-  validationRules: ValidationRules<T>
-) {
-  const [formState, setFormState] = useState<FormState<T>>({
-    data: initialData,
-    errors: [],
-    isSubmitting: false,
-    isValid: true,
-  });
-
-  const validateField = useCallback((field: keyof T, value: any): FormError | null => {
-    const rules = validationRules[field];
-    if (!rules) return null;
-
-    for (const rule of rules) {
-      const error = rule.validate(value);
-      if (error) {
-        return {
-          field: field as string,
-          message: error,
-          type: rule.type,
-        };
-      }
-    }
-    return null;
-  }, [validationRules]);
-
-  const setFieldValue = useCallback((field: keyof T, value: any) => {
-    setFormState(prev => {
-      const newData = { ...prev.data, [field]: value };
-      const fieldError = validateField(field, value);
-      
-      const newErrors = prev.errors.filter(error => error.field !== field);
-      if (fieldError) {
-        newErrors.push(fieldError);
-      }
-
-      return {
-        ...prev,
-        data: newData,
-        errors: newErrors,
-        isValid: newErrors.length === 0,
-      };
-    });
-  }, [validateField]);
-
-  const validateForm = useCallback((): boolean => {
-    const errors: FormError[] = [];
-    
-    Object.keys(formState.data).forEach(field => {
-      const error = validateField(field, formState.data[field]);
-      if (error) {
-        errors.push(error);
-      }
-    });
-
-    setFormState(prev => ({
-      ...prev,
-      errors,
-      isValid: errors.length === 0,
-    }));
-
-    return errors.length === 0;
-  }, [formState.data, validateField]);
-
-  const handleSubmit = useCallback(async (
-    onSubmit: (data: T) => Promise<void>
-  ) => {
-    if (!validateForm()) {
-      return;
-    }
-
-    setFormState(prev => ({ ...prev, isSubmitting: true }));
-
-    try {
-      await onSubmit(formState.data);
-    } catch (error) {
-      if (error instanceof ValidationError) {
-        setFormState(prev => ({
-          ...prev,
-          errors: [
-            ...prev.errors.filter(e => e.field !== error.field),
-            {
-              field: error.field,
-              message: error.message,
-              type: 'custom',
-            },
-          ],
-          isValid: false,
-        }));
-      } else {
-        // 处理其他类型的错误
-        ErrorHandler.getInstance().handle(error as AppError);
-      }
-    } finally {
-      setFormState(prev => ({ ...prev, isSubmitting: false }));
-    }
-  }, [formState.data, validateForm]);
-
-  return {
-    ...formState,
-    setFieldValue,
-    validateForm,
-    handleSubmit,
-    getFieldError: (field: string) => 
-      formState.errors.find(error => error.field === field),
-  };
-}
-```
-
-## 日志记录规范
-
-【必须】建立完善的日志系统：
-
-```tsx
-// ✅ 正确 - 日志级别
-enum LogLevel {
-  DEBUG = 0,
-  INFO = 1,
-  WARN = 2,
-  ERROR = 3,
-}
-
-interface LogEntry {
-  level: LogLevel;
-  message: string;
-  timestamp: string;
-  context?: Record<string, unknown>;
-  error?: Error;
-  userId?: string;
-  sessionId?: string;
-}
-
-class Logger {
-  private static instance: Logger;
-  private logLevel: LogLevel = LogLevel.INFO;
-  private loggers: Array<(entry: LogEntry) => void> = [];
-
-  static getInstance(): Logger {
-    if (!Logger.instance) {
-      Logger.instance = new Logger();
-    }
-    return Logger.instance;
-  }
-
-  setLogLevel(level: LogLevel): void {
-    this.logLevel = level;
-  }
-
-  addLogger(logger: (entry: LogEntry) => void): void {
-    this.loggers.push(logger);
-  }
-
-  private log(level: LogLevel, message: string, context?: Record<string, unknown>, error?: Error): void {
-    if (level < this.logLevel) {
-      return;
-    }
-
-    const entry: LogEntry = {
-      level,
-      message,
-      timestamp: new Date().toISOString(),
-      context,
-      error,
-      userId: getCurrentUserId(),
-      sessionId: getSessionId(),
-    };
-
-    // 控制台输出
-    this.logToConsole(entry);
-
-    // 外部日志记录器
-    this.loggers.forEach(logger => {
-      try {
-        logger(entry);
-      } catch (logError) {
-        console.error('Logger failed:', logError);
-      }
-    });
-  }
-
-  private logToConsole(entry: LogEntry): void {
-    const prefix = `[${LogLevel[entry.level]}] ${entry.timestamp}`;
-    const message = `${prefix} ${entry.message}`;
-
-    switch (entry.level) {
-      case LogLevel.DEBUG:
-        console.debug(message, entry.context);
-        break;
-      case LogLevel.INFO:
-        console.info(message, entry.context);
-        break;
-      case LogLevel.WARN:
-        console.warn(message, entry.context);
-        break;
-      case LogLevel.ERROR:
-        console.error(message, entry.context, entry.error);
-        break;
-    }
-  }
-
-  debug(message: string, context?: Record<string, unknown>): void {
-    this.log(LogLevel.DEBUG, message, context);
-  }
-
-  info(message: string, context?: Record<string, unknown>): void {
-    this.log(LogLevel.INFO, message, context);
-  }
-
-  warn(message: string, context?: Record<string, unknown>): void {
-    this.log(LogLevel.WARN, message, context);
-  }
-
-  error(message: string, error?: Error, context?: Record<string, unknown>): void {
-    this.log(LogLevel.ERROR, message, context, error);
-  }
-}
-
-// ✅ 正确 - 远程日志记录器
-function createRemoteLogger(endpoint: string) {
-  const logQueue: LogEntry[] = [];
-  let isFlushingLogs = false;
-
-  const flushLogs = async () => {
-    if (isFlushingLogs || logQueue.length === 0) {
-      return;
-    }
-
-    isFlushingLogs = true;
-    const logsToSend = logQueue.splice(0, 10); // 批量发送
-
-    try {
-      await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ logs: logsToSend }),
-      });
-    } catch (error) {
-      // 发送失败，重新加入队列
-      logQueue.unshift(...logsToSend);
-      console.error('Failed to send logs:', error);
-    } finally {
-      isFlushingLogs = false;
-    }
-  };
-
-  // 定期刷新日志
-  setInterval(flushLogs, 5000);
-
-  return (entry: LogEntry) => {
-    logQueue.push(entry);
-    
-    // 错误级别立即发送
-    if (entry.level === LogLevel.ERROR) {
-      flushLogs();
-    }
-  };
-}
-```
-
-## 用户友好错误提示
-
-【必须】提供清晰的用户错误反馈：
-
-```tsx
-// ✅ 正确 - 错误提示组件
-interface ErrorMessageProps {
-  error: AppError;
-  onRetry?: () => void;
-  onDismiss?: () => void;
-}
-
-function ErrorMessage({ error, onRetry, onDismiss }: ErrorMessageProps) {
-  const getErrorIcon = () => {
-    switch (error.type) {
-      case 'validation':
-        return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
-      case 'network':
-        return <Wifi className="w-5 h-5 text-red-500" />;
-      case 'business':
-        return <Info className="w-5 h-5 text-blue-500" />;
-      case 'system':
-        return <AlertCircle className="w-5 h-5 text-red-500" />;
-      default:
-        return <AlertCircle className="w-5 h-5 text-gray-500" />;
-    }
-  };
-
-  const getErrorColor = () => {
-    switch (error.type) {
-      case 'validation':
-        return 'border-yellow-200 bg-yellow-50 text-yellow-800';
-      case 'network':
-        return 'border-red-200 bg-red-50 text-red-800';
-      case 'business':
-        return 'border-blue-200 bg-blue-50 text-blue-800';
-      case 'system':
-        return 'border-red-200 bg-red-50 text-red-800';
-      default:
-        return 'border-gray-200 bg-gray-50 text-gray-800';
-    }
-  };
-
-  return (
-    <div className={`flex items-start gap-3 p-4 border rounded-lg ${getErrorColor()}`}>
-      {getErrorIcon()}
-      <div className="flex-1">
-        <p className="font-medium">{error.message}</p>
-        {error.type === 'validation' && (
-          <p className="text-sm mt-1 opacity-75">
-            请检查输入内容是否符合要求
-          </p>
-        )}
-      </div>
-      <div className="flex gap-2">
-        {onRetry && (
-          <Button size="sm" variant="outline" onClick={onRetry}>
-            重试
-          </Button>
-        )}
-        {onDismiss && (
-          <Button size="sm" variant="ghost" onClick={onDismiss}>
-            <X className="w-4 h-4" />
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ✅ 正确 - Toast 通知
-interface ToastOptions {
-  duration?: number;
-  action?: {
-    label: string;
-    onClick: () => void;
-  };
-}
-
-function showErrorToast(error: AppError, options: ToastOptions = {}) {
-  const message = ErrorHandler.getInstance().getUserMessage(error);
-  
-  toast.error(message, {
-    duration: options.duration || 5000,
-    action: options.action,
-  });
-}
-```
-
-## 错误处理检查清单
-
-【必须】在开发时确认：
-
-- [ ] **错误分类**：所有错误都有明确的类型和代码
-- [ ] **错误边界**：关键组件都有错误边界保护
-- [ ] **API 错误**：统一处理 HTTP 错误和网络错误
-- [ ] **异步错误**：正确处理 Promise 和异步操作错误
-- [ ] **表单验证**：提供实时验证和错误提示
-- [ ] **日志记录**：错误信息完整记录到日志系统
-- [ ] **用户体验**：错误提示清晰友好，提供解决方案
-- [ ] **错误恢复**：提供重试和恢复机制
-- [ ] **监控上报**：错误信息正确上报到监控系统
-- [ ] **开发调试**：开发环境提供详细错误信息
-</rewritten_file>
+### 可选优化 [P2]
+- [ ] **重试机制**：网络错误提供重试选项
+- [ ] **优雅降级**：错误时应用仍可基本使用 

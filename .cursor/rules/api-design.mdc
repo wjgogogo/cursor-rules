@@ -1,6 +1,6 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: false
 ---
 # API 设计规范
@@ -12,76 +12,21 @@ alwaysApply: false
 ```typescript
 // ✅ 正确 - RESTful 路由设计
 interface ApiRoutes {
-  // 资源集合
-  'GET /api/users': {
-    query?: {
-      page?: number;
-      limit?: number;
-      search?: string;
-      role?: 'admin' | 'user';
-    };
-    response: PaginatedResponse<User>;
-  };
-
-  // 单个资源
-  'GET /api/users/:id': {
-    params: { id: string };
-    response: ApiResponse<User>;
-  };
-
-  // 创建资源
-  'POST /api/users': {
-    body: CreateUserRequest;
-    response: ApiResponse<User>;
-  };
-
-  // 更新资源（完整更新）
-  'PUT /api/users/:id': {
-    params: { id: string };
-    body: UpdateUserRequest;
-    response: ApiResponse<User>;
-  };
-
-  // 部分更新
-  'PATCH /api/users/:id': {
-    params: { id: string };
-    body: Partial<UpdateUserRequest>;
-    response: ApiResponse<User>;
-  };
-
-  // 删除资源
-  'DELETE /api/users/:id': {
-    params: { id: string };
-    response: ApiResponse<null>;
-  };
-
-  // 嵌套资源
-  'GET /api/users/:userId/posts': {
-    params: { userId: string };
-    query?: PaginationQuery;
-    response: PaginatedResponse<Post>;
-  };
-
-  // 资源操作
-  'POST /api/users/:id/activate': {
-    params: { id: string };
-    response: ApiResponse<User>;
-  };
+  'GET /api/users': { response: PaginatedResponse<User> };
+  'GET /api/users/:id': { params: { id: string }; response: ApiResponse<User> };
+  'POST /api/users': { body: CreateUserRequest; response: ApiResponse<User> };
+  'PUT /api/users/:id': { params: { id: string }; body: UpdateUserRequest; response: ApiResponse<User> };
+  'DELETE /api/users/:id': { params: { id: string }; response: ApiResponse<null> };
 }
 
 // ✅ 正确 - HTTP 方法使用
 const HTTP_METHODS = {
   GET: '获取资源，幂等，无副作用',
-  POST: '创建资源或执行操作，非幂等',
+  POST: '创建资源或执行操作',
   PUT: '完整更新资源，幂等',
   PATCH: '部分更新资源，幂等',
   DELETE: '删除资源，幂等',
 } as const;
-
-// ❌ 错误 - 不符合 REST 的设计
-// GET /api/getUserById?id=123  // 应使用 GET /api/users/123
-// POST /api/updateUser         // 应使用 PUT/PATCH /api/users/:id
-// GET /api/deleteUser?id=123   // 应使用 DELETE /api/users/123
 ```
 
 ## 统一响应格式
@@ -95,7 +40,6 @@ interface ApiResponse<T = any> {
   data: T;
   message: string;
   timestamp: string;
-  requestId: string;
 }
 
 // ✅ 正确 - 分页响应格式
@@ -104,7 +48,6 @@ interface PaginatedResponse<T> extends ApiResponse<T[]> {
     page: number;
     limit: number;
     total: number;
-    totalPages: number;
     hasNext: boolean;
     hasPrev: boolean;
   };
@@ -116,198 +59,82 @@ interface ErrorResponse {
   error: {
     code: string;
     message: string;
-    details?: Record<string, any>;
     field?: string; // 验证错误时的字段名
   };
   timestamp: string;
-  requestId: string;
 }
 
 // ✅ 正确 - 响应构建器
-class ResponseBuilder {
-  static success<T>(data: T, message: string = 'Success'): ApiResponse<T> {
-    return {
-      success: true,
-      data,
-      message,
-      timestamp: new Date().toISOString(),
-      requestId: generateRequestId(),
-    };
-  }
-
-  static paginated<T>(
-    data: T[],
-    pagination: PaginationInfo,
-    message: string = 'Success'
-  ): PaginatedResponse<T> {
-    return {
-      success: true,
-      data,
-      message,
-      timestamp: new Date().toISOString(),
-      requestId: generateRequestId(),
-      pagination: {
-        page: pagination.page,
-        limit: pagination.limit,
-        total: pagination.total,
-        totalPages: Math.ceil(pagination.total / pagination.limit),
-        hasNext: pagination.page * pagination.limit < pagination.total,
-        hasPrev: pagination.page > 1,
-      },
-    };
-  }
-
-  static error(
-    code: string,
-    message: string,
-    details?: Record<string, any>,
-    field?: string
-  ): ErrorResponse {
-    return {
-      success: false,
-      error: {
-        code,
-        message,
-        details,
-        field,
-      },
-      timestamp: new Date().toISOString(),
-      requestId: generateRequestId(),
-    };
-  }
-}
-
-// ✅ 正确 - 使用示例
-// 成功响应
-app.get('/api/users/:id', async (req, res) => {
-  try {
-    const user = await userService.findById(req.params.id);
-    if (!user) {
-      return res.status(404).json(
-        ResponseBuilder.error('USER_NOT_FOUND', '用户不存在')
-      );
-    }
-    res.json(ResponseBuilder.success(user, '获取用户成功'));
-  } catch (error) {
-    res.status(500).json(
-      ResponseBuilder.error('INTERNAL_ERROR', '服务器内部错误')
-    );
-  }
-});
+const createResponse = {
+  success: <T>(data: T, message = 'Success'): ApiResponse<T> => ({
+    success: true,
+    data,
+    message,
+    timestamp: new Date().toISOString(),
+  }),
+  
+  error: (code: string, message: string, field?: string): ErrorResponse => ({
+    success: false,
+    error: { code, message, field },
+    timestamp: new Date().toISOString(),
+  }),
+};
 ```
 
 ## HTTP 状态码规范
 
-【必须】正确使用 HTTP 状态码：
+【必须】正确使用常用状态码：
 
 ```typescript
-// ✅ 正确 - 状态码使用指南
-const HTTP_STATUS_CODES = {
-  // 2xx 成功
+const HTTP_STATUS = {
+  // 成功
   200: 'OK - 请求成功',
-  201: 'Created - 资源创建成功',
-  202: 'Accepted - 请求已接受，异步处理中',
-  204: 'No Content - 请求成功，无返回内容（如删除）',
-
-  // 3xx 重定向
-  301: 'Moved Permanently - 资源永久移动',
-  302: 'Found - 资源临时移动',
-  304: 'Not Modified - 资源未修改，使用缓存',
-
-  // 4xx 客户端错误
+  201: 'Created - 资源创建成功', 
+  204: 'No Content - 删除成功',
+  
+  // 客户端错误
   400: 'Bad Request - 请求参数错误',
   401: 'Unauthorized - 未认证',
   403: 'Forbidden - 无权限',
   404: 'Not Found - 资源不存在',
-  405: 'Method Not Allowed - HTTP 方法不允许',
-  409: 'Conflict - 资源冲突',
-  422: 'Unprocessable Entity - 请求格式正确但语义错误',
-  429: 'Too Many Requests - 请求过于频繁',
-
-  // 5xx 服务器错误
-  500: 'Internal Server Error - 服务器内部错误',
-  502: 'Bad Gateway - 网关错误',
-  503: 'Service Unavailable - 服务不可用',
-  504: 'Gateway Timeout - 网关超时',
+  422: 'Unprocessable Entity - 验证失败',
+  
+  // 服务器错误
+  500: 'Internal Server Error - 服务器错误',
 } as const;
 
-// ✅ 正确 - 状态码使用示例
-class ApiController {
-  // 获取资源 - 200
-  async getUser(req: Request, res: Response) {
-    const user = await userService.findById(req.params.id);
-    if (!user) {
-      return res.status(404).json(
-        ResponseBuilder.error('USER_NOT_FOUND', '用户不存在')
-      );
-    }
-    res.status(200).json(ResponseBuilder.success(user));
+// ✅ 使用示例
+app.get('/api/users/:id', async (req, res) => {
+  const user = await userService.findById(req.params.id);
+  if (!user) {
+    return res.status(404).json(
+      createResponse.error('USER_NOT_FOUND', '用户不存在')
+    );
   }
-
-  // 创建资源 - 201
-  async createUser(req: Request, res: Response) {
-    const user = await userService.create(req.body);
-    res.status(201).json(ResponseBuilder.success(user, '用户创建成功'));
-  }
-
-  // 更新资源 - 200
-  async updateUser(req: Request, res: Response) {
-    const user = await userService.update(req.params.id, req.body);
-    res.status(200).json(ResponseBuilder.success(user, '用户更新成功'));
-  }
-
-  // 删除资源 - 204
-  async deleteUser(req: Request, res: Response) {
-    await userService.delete(req.params.id);
-    res.status(204).send();
-  }
-
-  // 验证错误 - 422
-  async validateUser(req: Request, res: Response) {
-    const errors = validateUserInput(req.body);
-    if (errors.length > 0) {
-      return res.status(422).json(
-        ResponseBuilder.error('VALIDATION_ERROR', '输入验证失败', { errors })
-      );
-    }
-  }
-
-  // 权限错误 - 403
-  async checkPermission(req: Request, res: Response) {
-    if (!hasPermission(req.user, 'admin')) {
-      return res.status(403).json(
-        ResponseBuilder.error('INSUFFICIENT_PERMISSIONS', '权限不足')
-      );
-    }
-  }
-}
+  res.status(200).json(createResponse.success(user));
+});
 ```
 
-## 请求验证和类型安全
+## 请求验证
 
 【必须】验证所有输入数据：
 
 ```typescript
-// ✅ 正确 - 请求验证中间件
 import { z } from 'zod';
 
-// 定义验证模式
+// ✅ 正确 - 定义验证模式
 const CreateUserSchema = z.object({
   name: z.string().min(1).max(100),
   email: z.string().email(),
-  age: z.number().int().min(0).max(150).optional(),
   role: z.enum(['admin', 'user']).default('user'),
 });
-
-const UpdateUserSchema = CreateUserSchema.partial();
 
 const PaginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-  search: z.string().optional(),
 });
 
-// 验证中间件
+// ✅ 正确 - 验证中间件
 function validateBody<T extends z.ZodSchema>(schema: T) {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -315,18 +142,8 @@ function validateBody<T extends z.ZodSchema>(schema: T) {
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const validationErrors = error.errors.map(err => ({
-          field: err.path.join('.'),
-          message: err.message,
-          code: err.code,
-        }));
-        
         return res.status(422).json(
-          ResponseBuilder.error(
-            'VALIDATION_ERROR',
-            '请求数据验证失败',
-            { errors: validationErrors }
-          )
+          createResponse.error('VALIDATION_ERROR', '数据验证失败')
         );
       }
       next(error);
@@ -334,87 +151,66 @@ function validateBody<T extends z.ZodSchema>(schema: T) {
   };
 }
 
-function validateQuery<T extends z.ZodSchema>(schema: T) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    try {
-      req.query = schema.parse(req.query);
-      next();
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json(
-          ResponseBuilder.error('INVALID_QUERY', '查询参数无效')
-        );
-      }
-      next(error);
-    }
-  };
-}
-
-// ✅ 正确 - 路由中使用验证
+// ✅ 使用示例
 app.post('/api/users', 
   validateBody(CreateUserSchema),
-  async (req: Request, res: Response) => {
-    // req.body 已经过验证和类型转换
+  async (req, res) => {
     const user = await userService.create(req.body);
-    res.status(201).json(ResponseBuilder.success(user));
-  }
-);
-
-app.get('/api/users',
-  validateQuery(PaginationSchema),
-  async (req: Request, res: Response) => {
-    // req.query 已经过验证和类型转换
-    const { page, limit, search } = req.query;
-    const result = await userService.findMany({ page, limit, search });
-    res.json(ResponseBuilder.paginated(result.data, result.pagination));
+    res.status(201).json(createResponse.success(user));
   }
 );
 ```
 
-## API 版本控制
+## 错误码规范
 
-【必须】实现 API 版本管理：
+【必须】使用统一的错误码：
 
 ```typescript
-// ✅ 正确 - URL 版本控制（推荐）
-const API_VERSIONS = {
-  V1: '/api/v1',
-  V2: '/api/v2',
+const ERROR_CODES = {
+  // 通用错误
+  INTERNAL_ERROR: 'E1000',
+  INVALID_REQUEST: 'E1001', 
+  UNAUTHORIZED: 'E1002',
+  FORBIDDEN: 'E1003',
+  NOT_FOUND: 'E1004',
+  
+  // 验证错误
+  VALIDATION_ERROR: 'E2000',
+  INVALID_EMAIL: 'E2001',
+  
+  // 业务错误
+  USER_NOT_FOUND: 'E3000',
+  USER_ALREADY_EXISTS: 'E3001',
+  INVALID_CREDENTIALS: 'E3002',
 } as const;
 
-// v1 用户 API
-app.get('/api/v1/users/:id', async (req, res) => {
-  const user = await userService.findByIdV1(req.params.id);
-  res.json(ResponseBuilder.success(user));
-});
-
-// v2 用户 API（增强版本）
-app.get('/api/v2/users/:id', async (req, res) => {
-  const user = await userService.findByIdV2(req.params.id);
-  res.json(ResponseBuilder.success(user));
-});
-
-// ✅ 正确 - Header 版本控制（备选）
-app.get('/api/users/:id', async (req, res) => {
-  const version = req.headers['api-version'] || 'v1';
+// ✅ 全局错误处理
+function errorHandler(err: Error, req: Request, res: Response, next: NextFunction) {
+  console.error('API Error:', err);
   
-  switch (version) {
-    case 'v1':
-      const userV1 = await userService.findByIdV1(req.params.id);
-      res.json(ResponseBuilder.success(userV1));
-      break;
-    case 'v2':
-      const userV2 = await userService.findByIdV2(req.params.id);
-      res.json(ResponseBuilder.success(userV2));
-      break;
-    default:
-      res.status(400).json(
-        ResponseBuilder.error('UNSUPPORTED_VERSION', '不支持的 API 版本')
-      );
+  // 根据错误类型返回适当的状态码和消息
+  if (err.message.includes('not found')) {
+    return res.status(404).json(
+      createResponse.error(ERROR_CODES.NOT_FOUND, '资源不存在')
+    );
   }
-});
+  
+  res.status(500).json(
+    createResponse.error(ERROR_CODES.INTERNAL_ERROR, '服务器内部错误')
+  );
+}
+```
 
-// ✅ 正确 - 版本兼容性处理
+## API 版本控制
+
+【推荐】使用 URL 版本控制：
+
+```typescript
+// ✅ 正确 - URL 版本控制
+app.get('/api/v1/users/:id', userController.getUserV1);
+app.get('/api/v2/users/:id', userController.getUserV2);
+
+// ✅ 版本兼容处理
 interface UserV1 {
   id: string;
   name: string;
@@ -426,473 +222,47 @@ interface UserV2 extends UserV1 {
     avatar: string;
     bio: string;
   };
-  preferences: {
-    theme: 'light' | 'dark';
-    language: string;
-  };
-}
-
-class UserService {
-  async findByIdV1(id: string): Promise<UserV1> {
-    const user = await this.findById(id);
-    // 返回 v1 格式
-    return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-    };
-  }
-
-  async findByIdV2(id: string): Promise<UserV2> {
-    const user = await this.findById(id);
-    // 返回 v2 格式
-    return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      profile: user.profile || { avatar: '', bio: '' },
-      preferences: user.preferences || { theme: 'light', language: 'zh-CN' },
-    };
-  }
 }
 ```
 
-## 错误码标准化
+## 安全和性能
 
-【必须】使用统一的错误码体系：
-
-```typescript
-// ✅ 正确 - 错误码定义
-const ERROR_CODES = {
-  // 通用错误 (1000-1999)
-  INTERNAL_ERROR: 'E1000',
-  INVALID_REQUEST: 'E1001',
-  UNAUTHORIZED: 'E1002',
-  FORBIDDEN: 'E1003',
-  NOT_FOUND: 'E1004',
-  METHOD_NOT_ALLOWED: 'E1005',
-  RATE_LIMITED: 'E1006',
-
-  // 验证错误 (2000-2999)
-  VALIDATION_ERROR: 'E2000',
-  MISSING_REQUIRED_FIELD: 'E2001',
-  INVALID_EMAIL_FORMAT: 'E2002',
-  INVALID_PASSWORD: 'E2003',
-  FIELD_TOO_LONG: 'E2004',
-  FIELD_TOO_SHORT: 'E2005',
-
-  // 业务错误 (3000-3999)
-  USER_NOT_FOUND: 'E3000',
-  USER_ALREADY_EXISTS: 'E3001',
-  INVALID_CREDENTIALS: 'E3002',
-  ACCOUNT_LOCKED: 'E3003',
-  EMAIL_NOT_VERIFIED: 'E3004',
-
-  // 系统错误 (4000-4999)
-  DATABASE_ERROR: 'E4000',
-  EXTERNAL_SERVICE_ERROR: 'E4001',
-  FILE_UPLOAD_ERROR: 'E4002',
-  CACHE_ERROR: 'E4003',
-} as const;
-
-// ✅ 正确 - 错误信息映射
-const ERROR_MESSAGES = {
-  [ERROR_CODES.INTERNAL_ERROR]: '服务器内部错误',
-  [ERROR_CODES.INVALID_REQUEST]: '请求格式错误',
-  [ERROR_CODES.UNAUTHORIZED]: '未授权访问',
-  [ERROR_CODES.FORBIDDEN]: '权限不足',
-  [ERROR_CODES.NOT_FOUND]: '资源不存在',
-  [ERROR_CODES.VALIDATION_ERROR]: '数据验证失败',
-  [ERROR_CODES.USER_NOT_FOUND]: '用户不存在',
-  [ERROR_CODES.USER_ALREADY_EXISTS]: '用户已存在',
-  [ERROR_CODES.INVALID_CREDENTIALS]: '用户名或密码错误',
-} as const;
-
-// ✅ 正确 - 错误处理工具
-class ApiError extends Error {
-  constructor(
-    public code: string,
-    public message: string,
-    public statusCode: number = 500,
-    public details?: Record<string, any>
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
-
-  static badRequest(code: string, message?: string, details?: Record<string, any>) {
-    return new ApiError(
-      code,
-      message || ERROR_MESSAGES[code as keyof typeof ERROR_MESSAGES] || '请求错误',
-      400,
-      details
-    );
-  }
-
-  static unauthorized(code: string = ERROR_CODES.UNAUTHORIZED, message?: string) {
-    return new ApiError(
-      code,
-      message || ERROR_MESSAGES[code as keyof typeof ERROR_MESSAGES] || '未授权',
-      401
-    );
-  }
-
-  static forbidden(code: string = ERROR_CODES.FORBIDDEN, message?: string) {
-    return new ApiError(
-      code,
-      message || ERROR_MESSAGES[code as keyof typeof ERROR_MESSAGES] || '禁止访问',
-      403
-    );
-  }
-
-  static notFound(code: string = ERROR_CODES.NOT_FOUND, message?: string) {
-    return new ApiError(
-      code,
-      message || ERROR_MESSAGES[code as keyof typeof ERROR_MESSAGES] || '资源不存在',
-      404
-    );
-  }
-
-  static internal(code: string = ERROR_CODES.INTERNAL_ERROR, message?: string) {
-    return new ApiError(
-      code,
-      message || ERROR_MESSAGES[code as keyof typeof ERROR_MESSAGES] || '服务器错误',
-      500
-    );
-  }
-}
-
-// ✅ 正确 - 全局错误处理中间件
-function errorHandler(err: Error, req: Request, res: Response, next: NextFunction) {
-  if (err instanceof ApiError) {
-    return res.status(err.statusCode).json(
-      ResponseBuilder.error(err.code, err.message, err.details)
-    );
-  }
-
-  // 未知错误
-  console.error('Unhandled error:', err);
-  res.status(500).json(
-    ResponseBuilder.error(ERROR_CODES.INTERNAL_ERROR, '服务器内部错误')
-  );
-}
-```
-
-## API 文档和类型生成
-
-【必须】维护完整的 API 文档：
+【必须】实现基础安全措施：
 
 ```typescript
-// ✅ 正确 - OpenAPI 规范
-const openApiSpec = {
-  openapi: '3.0.0',
-  info: {
-    title: 'User Management API',
-    version: '1.0.0',
-    description: '用户管理系统 API',
-  },
-  servers: [
-    {
-      url: 'https://api.example.com/v1',
-      description: '生产环境',
-    },
-    {
-      url: 'https://staging-api.example.com/v1',
-      description: '测试环境',
-    },
-  ],
-  paths: {
-    '/users': {
-      get: {
-        summary: '获取用户列表',
-        parameters: [
-          {
-            name: 'page',
-            in: 'query',
-            schema: { type: 'integer', minimum: 1, default: 1 },
-          },
-          {
-            name: 'limit',
-            in: 'query',
-            schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
-          },
-        ],
-        responses: {
-          '200': {
-            description: '成功',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/PaginatedUserResponse' },
-              },
-            },
-          },
-        },
-      },
-      post: {
-        summary: '创建用户',
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/CreateUserRequest' },
-            },
-          },
-        },
-        responses: {
-          '201': {
-            description: '创建成功',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/UserResponse' },
-              },
-            },
-          },
-        },
-      },
-    },
-  },
-  components: {
-    schemas: {
-      User: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' },
-          name: { type: 'string' },
-          email: { type: 'string', format: 'email' },
-          role: { type: 'string', enum: ['admin', 'user'] },
-          createdAt: { type: 'string', format: 'date-time' },
-        },
-        required: ['id', 'name', 'email', 'role', 'createdAt'],
-      },
-      CreateUserRequest: {
-        type: 'object',
-        properties: {
-          name: { type: 'string', minLength: 1, maxLength: 100 },
-          email: { type: 'string', format: 'email' },
-          role: { type: 'string', enum: ['admin', 'user'], default: 'user' },
-        },
-        required: ['name', 'email'],
-      },
-    },
-  },
-};
-
-// ✅ 正确 - 类型生成脚本
-// 使用 openapi-typescript 生成类型
-// npm install -D openapi-typescript
-// npx openapi-typescript openapi.json -o types/api.ts
-
-// 生成的类型使用示例
-import type { paths } from './types/api';
-
-type GetUsersResponse = paths['/users']['get']['responses']['200']['content']['application/json'];
-type CreateUserRequest = paths['/users']['post']['requestBody']['content']['application/json'];
-```
-
-## 性能优化
-
-【必须】实现 API 性能优化：
-
-```typescript
-// ✅ 正确 - 缓存策略
-import Redis from 'ioredis';
-
-const redis = new Redis(process.env.REDIS_URL);
-
-// 缓存中间件
-function cacheMiddleware(ttl: number = 300) {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    const cacheKey = `api:${req.method}:${req.originalUrl}`;
-    
-    try {
-      const cached = await redis.get(cacheKey);
-      if (cached) {
-        return res.json(JSON.parse(cached));
-      }
-    } catch (error) {
-      console.warn('Cache read error:', error);
-    }
-
-    // 重写 res.json 以缓存响应
-    const originalJson = res.json;
-    res.json = function(data: any) {
-      if (res.statusCode === 200) {
-        redis.setex(cacheKey, ttl, JSON.stringify(data)).catch(console.warn);
-      }
-      return originalJson.call(this, data);
-    };
-
-    next();
-  };
-}
-
-// ✅ 正确 - 分页优化
-interface PaginationOptions {
-  page: number;
-  limit: number;
-  cursor?: string; // 游标分页
-}
-
-class PaginationService {
-  // 偏移分页（适合小数据集）
-  static offset(page: number, limit: number) {
-    return {
-      offset: (page - 1) * limit,
-      limit,
-    };
-  }
-
-  // 游标分页（适合大数据集）
-  static cursor(cursor?: string, limit: number = 20) {
-    return {
-      cursor,
-      limit,
-    };
-  }
-
-  // 构建分页响应
-  static buildResponse<T>(
-    data: T[],
-    total: number,
-    page: number,
-    limit: number
-  ): PaginatedResponse<T> {
-    return ResponseBuilder.paginated(data, {
-      page,
-      limit,
-      total,
-    });
-  }
-}
-
-// ✅ 正确 - 字段选择
-function selectFields(allowedFields: string[]) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const fields = req.query.fields as string;
-    if (fields) {
-      const requestedFields = fields.split(',');
-      const validFields = requestedFields.filter(field => 
-        allowedFields.includes(field)
-      );
-      req.selectedFields = validFields;
-    }
-    next();
-  };
-}
-
-// 使用示例
-app.get('/api/users',
-  selectFields(['id', 'name', 'email', 'role']),
-  cacheMiddleware(300),
-  async (req: Request, res: Response) => {
-    const users = await userService.findMany({
-      fields: req.selectedFields,
-      ...req.query,
-    });
-    res.json(ResponseBuilder.paginated(users.data, users.pagination));
-  }
-);
-```
-
-## API 安全
-
-【必须】实现 API 安全措施：
-
-```typescript
-// ✅ 正确 - 认证中间件
-import jwt from 'jsonwebtoken';
-
-interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    role: string;
-    permissions: string[];
-  };
-}
-
-function authenticate(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+// ✅ 认证中间件
+function authenticate(req: Request, res: Response, next: NextFunction) {
   const token = req.headers.authorization?.replace('Bearer ', '');
-  
   if (!token) {
     return res.status(401).json(
-      ResponseBuilder.error(ERROR_CODES.UNAUTHORIZED, '缺少认证令牌')
+      createResponse.error(ERROR_CODES.UNAUTHORIZED, '缺少认证令牌')
     );
   }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-    req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(401).json(
-      ResponseBuilder.error(ERROR_CODES.UNAUTHORIZED, '无效的认证令牌')
-    );
-  }
+  // 验证 token 逻辑
+  next();
 }
 
-// ✅ 正确 - 权限控制
-function authorize(requiredPermissions: string[]) {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      return res.status(401).json(
-        ResponseBuilder.error(ERROR_CODES.UNAUTHORIZED, '未认证')
-      );
-    }
-
-    const hasPermission = requiredPermissions.every(permission =>
-      req.user!.permissions.includes(permission)
-    );
-
-    if (!hasPermission) {
-      return res.status(403).json(
-        ResponseBuilder.error(ERROR_CODES.FORBIDDEN, '权限不足')
-      );
-    }
-
-    next();
-  };
-}
-
-// ✅ 正确 - 速率限制
+// ✅ 基础速率限制
 import rateLimit from 'express-rate-limit';
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 分钟
   max: 100, // 最多 100 个请求
-  message: ResponseBuilder.error(ERROR_CODES.RATE_LIMITED, '请求过于频繁'),
-  standardHeaders: true,
-  legacyHeaders: false,
+  message: createResponse.error('RATE_LIMITED', '请求过于频繁'),
 });
 
-const strictLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5, // 敏感操作限制更严格
-  message: ResponseBuilder.error(ERROR_CODES.RATE_LIMITED, '操作过于频繁'),
-});
-
-// 使用示例
 app.use('/api/', apiLimiter);
-app.post('/api/auth/login', strictLimiter, loginHandler);
-app.delete('/api/users/:id', 
-  authenticate, 
-  authorize(['user:delete']), 
-  deleteUserHandler
-);
 ```
 
-## API 检查清单
+## 检查清单
 
-【必须】在发布前确认：
+发布前必须确认：
 
-- [ ] **RESTful 设计**：遵循 REST 原则，使用正确的 HTTP 方法
-- [ ] **响应格式**：统一的响应结构和错误格式
+- [ ] **RESTful 设计**：正确使用 HTTP 方法和 URL 结构
+- [ ] **响应格式**：统一的成功和错误响应格式  
 - [ ] **状态码**：正确使用 HTTP 状态码
-- [ ] **输入验证**：所有输入都经过验证和类型检查
-- [ ] **错误处理**：完整的错误码体系和错误处理
-- [ ] **版本控制**：合理的 API 版本管理策略
-- [ ] **文档完整**：OpenAPI 规范和类型定义
-- [ ] **性能优化**：缓存、分页、字段选择
+- [ ] **输入验证**：所有输入经过验证和类型检查
+- [ ] **错误处理**：统一的错误码和错误处理
 - [ ] **安全措施**：认证、授权、速率限制
-- [ ] **监控日志**：请求日志和性能监控
-- [ ] **测试覆盖**：单元测试和集成测试
-- [ ] **向后兼容**：版本升级的兼容性考虑
+- [ ] **文档完整**：API 文档和类型定义
+- [ ] **性能考虑**：分页、缓存、字段选择

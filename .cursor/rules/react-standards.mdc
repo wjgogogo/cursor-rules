@@ -5,103 +5,325 @@ alwaysApply: false
 ---
 # React 开发规范
 
-## 组件定义
+> **类型定义规范**：详细的 TypeScript 类型规范请参考 `typescript-standards.mdc`
+
+## 核心原则 [P0]
 
 【必须】遵循：
 - 使用函数组件 + Hooks，避免类组件
-- TypeScript 定义 Props 和 State 类型
+- TypeScript 定义所有 Props 类型
 - 命名导出，避免默认导出
+- 自定义 Hooks 以 `use` 开头
+
+## 组件定义
+
+【必须】使用 TypeScript 定义组件：
 
 ```tsx
-// ✅ 正确
-import { useState } from 'react';
-
+// ✅ 正确 - 函数组件 + TypeScript
 interface ButtonProps {
-  label: string;
+  children: React.ReactNode;
   onClick: () => void;
   variant?: 'primary' | 'secondary';
+  disabled?: boolean;
 }
 
-export function Button({ label, onClick, variant = 'primary' }: ButtonProps) {
-  const [isHovered, setIsHovered] = useState(false);
-  
+export function Button({ 
+  children, 
+  onClick, 
+  variant = 'primary',
+  disabled = false 
+}: ButtonProps) {
   return (
     <button 
-      className={`btn btn-${variant} ${isHovered ? 'hovered' : ''}`}
+      className={`btn btn-${variant}`}
       onClick={onClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      disabled={disabled}
     >
-      {label}
+      {children}
     </button>
   );
 }
 
-// ❌ 错误
+// ❌ 错误 - 默认导出 + 无类型
 export default function Button(props) {
-  // 未定义类型，使用默认导出
+  return <button>{props.children}</button>;
 }
 ```
 
-## Hooks 使用
+## Hooks 使用规范
 
-【必须】遵循：
-- 自定义 Hooks 以 `use` 开头
-- 不在条件语句中使用 Hooks
-- 复杂逻辑封装为自定义 Hooks
+【必须】正确使用 Hooks：
 
 ```tsx
-// ✅ 正确
-function useWindowSize() {
-  const [size, setSize] = useState({ width: 0, height: 0 });
-  
+// ✅ 正确 - 自定义 Hook
+function useLocalStorage<T>(key: string, initialValue: T) {
+  const [value, setValue] = useState<T>(() => {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : initialValue;
+  });
+
+  const setStoredValue = (newValue: T) => {
+    setValue(newValue);
+    localStorage.setItem(key, JSON.stringify(newValue));
+  };
+
+  return [value, setStoredValue] as const;
+}
+
+// ✅ 正确 - 副作用清理
+function useEventListener(event: string, handler: (e: Event) => void) {
   useEffect(() => {
-    function handleResize() {
-      setSize({ width: window.innerWidth, height: window.innerHeight });
-    }
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-  
-  return size;
+    window.addEventListener(event, handler);
+    return () => window.removeEventListener(event, handler);
+  }, [event, handler]);
 }
 
-// ❌ 错误
-function getWindowSize() { // 不以 use 开头
-  const [size, setSize] = useState({ width: 0, height: 0 });
+// ❌ 错误 - 条件 Hook
+function BadComponent({ condition }: { condition: boolean }) {
+  if (condition) {
+    const [state, setState] = useState(0); // 违反 Hook 规则
+  }
+  return <div>Content</div>;
 }
 ```
 
-## 编程模式
+## 状态管理
 
-【必须】使用：
-- 函数式和声明式编程
-- 描述性变量名（`isLoading`, `hasError`）
-- 迭代和模块化，避免重复
+【必须】合理管理状态：
 
 ```tsx
-// ✅ 正确 - 函数式编程
-const processUsers = (users: User[]) => 
-  users
-    .filter(user => user.isActive)
-    .map(user => ({ ...user, fullName: `${user.firstName} ${user.lastName}` }))
-    .sort((a, b) => a.fullName.localeCompare(b.fullName));
+// ✅ 正确 - 状态提升
+interface TodoListProps {
+  todos: Todo[];
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
+}
 
-// ✅ 正确 - 描述性命名
-const isLoading = false;
-const hasError = false;
-const shouldShowModal = true;
+export function TodoList({ todos, onToggle, onDelete }: TodoListProps) {
+  return (
+    <div>
+      {todos.map(todo => (
+        <TodoItem 
+          key={todo.id}
+          todo={todo}
+          onToggle={onToggle}
+          onDelete={onDelete}
+        />
+      ))}
+    </div>
+  );
+}
 
-// ❌ 错误 - 命令式编程
-function processUsers(users) {
-  let result = [];
-  for (let i = 0; i < users.length; i++) {
-    if (users[i].isActive) {
-      users[i].fullName = users[i].firstName + ' ' + users[i].lastName;
-      result.push(users[i]);
-    }
+// ✅ 正确 - 复杂状态使用 useReducer
+interface State {
+  loading: boolean;
+  data: User[];
+  error: string | null;
+}
+
+type Action = 
+  | { type: 'FETCH_START' }
+  | { type: 'FETCH_SUCCESS'; payload: User[] }
+  | { type: 'FETCH_ERROR'; payload: string };
+
+function userReducer(state: State, action: Action): State {
+  switch (action.type) {
+    case 'FETCH_START':
+      return { ...state, loading: true, error: null };
+    case 'FETCH_SUCCESS':
+      return { ...state, loading: false, data: action.payload };
+    case 'FETCH_ERROR':
+      return { ...state, loading: false, error: action.payload };
+    default:
+      return state;
   }
-  return result;
+}
+
+function useUsers() {
+  const [state, dispatch] = useReducer(userReducer, {
+    loading: false,
+    data: [],
+    error: null,
+  });
+
+  return { state, dispatch };
 }
 ```
+
+## 事件处理
+
+【必须】正确处理事件：
+
+```tsx
+// ✅ 正确 - 事件处理
+interface FormProps {
+  onSubmit: (data: FormData) => void;
+}
+
+export function ContactForm({ onSubmit }: FormProps) {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    message: '',
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        name="name"
+        value={formData.name}
+        onChange={handleInputChange}
+        placeholder="姓名"
+      />
+      <input
+        name="email"
+        value={formData.email}
+        onChange={handleInputChange}
+        placeholder="邮箱"
+      />
+      <button type="submit">提交</button>
+    </form>
+  );
+}
+```
+
+## 条件渲染
+
+【必须】清晰的条件渲染：
+
+```tsx
+// ✅ 正确 - 清晰的条件渲染
+function UserProfile({ user, isLoading, error }: UserProfileProps) {
+  if (isLoading) {
+    return <div>加载中...</div>;
+  }
+
+  if (error) {
+    return <div>错误: {error}</div>;
+  }
+
+  if (!user) {
+    return <div>未找到用户</div>;
+  }
+
+  return (
+    <div>
+      <h1>{user.name}</h1>
+      <p>{user.email}</p>
+      {user.isAdmin && <div>管理员</div>}
+    </div>
+  );
+}
+
+// ✅ 正确 - 列表渲染
+function ProductList({ products }: { products: Product[] }) {
+  if (products.length === 0) {
+    return <div>暂无产品</div>;
+  }
+
+  return (
+    <div>
+      {products.map(product => (
+        <ProductCard key={product.id} product={product} />
+      ))}
+    </div>
+  );
+}
+```
+
+## 性能优化
+
+【推荐】适当使用优化技术：
+
+```tsx
+// ✅ 正确 - React.memo
+const ExpensiveComponent = React.memo(function ExpensiveComponent({ 
+  data, 
+  onUpdate 
+}: ExpensiveComponentProps) {
+  return (
+    <div>
+      {/* 复杂渲染逻辑 */}
+    </div>
+  );
+});
+
+// ✅ 正确 - useMemo 缓存计算
+function ProductList({ products, filter }: ProductListProps) {
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => 
+      product.name.toLowerCase().includes(filter.toLowerCase())
+    );
+  }, [products, filter]);
+
+  return (
+    <div>
+      {filteredProducts.map(product => (
+        <ProductCard key={product.id} product={product} />
+      ))}
+    </div>
+  );
+}
+
+// ✅ 正确 - useCallback 缓存函数
+function TodoApp() {
+  const [todos, setTodos] = useState<Todo[]>([]);
+
+  const handleToggle = useCallback((id: string) => {
+    setTodos(prev => prev.map(todo => 
+      todo.id === id ? { ...todo, completed: !todo.completed } : todo
+    ));
+  }, []);
+
+  return <TodoList todos={todos} onToggle={handleToggle} />;
+}
+```
+
+## React 错误边界
+
+【必须】在关键组件添加错误边界：
+
+```tsx
+function ErrorBoundary({ children, fallback }: {
+  children: React.ReactNode;
+  fallback?: React.ComponentType<{ error: Error; retry: () => void }>;
+}) {
+  const [error, setError] = useState<Error | null>(null);
+
+  if (error) {
+    const FallbackComponent = fallback || DefaultErrorFallback;
+    return <FallbackComponent error={error} retry={() => setError(null)} />;
+  }
+
+  return (
+    <ErrorBoundaryProvider onError={setError}>
+      {children}
+    </ErrorBoundaryProvider>
+  );
+}
+```
+
+## 检查清单
+
+开发时确认：
+
+- [ ] **函数组件**：使用函数组件和 Hooks
+- [ ] **TypeScript**：所有 Props 和状态都有类型定义  
+- [ ] **命名导出**：避免使用默认导出
+- [ ] **Hook 规则**：不在条件语句中使用 Hooks
+- [ ] **状态管理**：合理选择 useState 或 useReducer
+- [ ] **事件处理**：正确处理表单和用户交互
+- [ ] **条件渲染**：清晰的错误和加载状态处理
+- [ ] **性能优化**：适当使用 memo、useMemo、useCallback
+- [ ] **副作用清理**：清理事件监听器和定时器 

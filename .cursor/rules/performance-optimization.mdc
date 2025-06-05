@@ -5,419 +5,113 @@ alwaysApply: false
 ---
 # 性能优化规范
 
-## Web Vitals 监控指标
+## 核心指标监控 [P1]
 
-【必须】监控核心性能指标：
+【必须】监控 Web Vitals 核心指标：
 
 ```tsx
-// ✅ 正确 - Web Vitals 监控
-import { getCLS, getFID, getFCP, getLCP, getTTFB } from 'web-vitals';
+import { getCLS, getFID, getLCP } from 'web-vitals';
 
-interface PerformanceMetric {
-  name: string;
-  value: number;
-  rating: 'good' | 'needs-improvement' | 'poor';
-  delta: number;
-  id: string;
-}
-
-function sendToAnalytics(metric: PerformanceMetric) {
-  // 发送到分析服务
-  fetch('/api/analytics/performance', {
+// ✅ 基础性能监控
+function sendToAnalytics(metric: any) {
+  fetch('/api/performance', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      metric: metric.name,
+      name: metric.name,
       value: metric.value,
-      rating: metric.rating,
-      timestamp: Date.now(),
       url: window.location.href,
-      userAgent: navigator.userAgent,
     }),
   });
 }
 
-// 监控所有核心指标
+// 监控核心指标
 getCLS(sendToAnalytics);  // 累积布局偏移 < 0.1
 getFID(sendToAnalytics);  // 首次输入延迟 < 100ms
-getFCP(sendToAnalytics);  // 首次内容绘制 < 1.8s
 getLCP(sendToAnalytics);  // 最大内容绘制 < 2.5s
-getTTFB(sendToAnalytics); // 首字节时间 < 0.8s
-
-// ✅ 正确 - 性能阈值配置
-const PERFORMANCE_THRESHOLDS = {
-  LCP: { good: 2500, poor: 4000 },      // 最大内容绘制
-  FID: { good: 100, poor: 300 },        // 首次输入延迟
-  CLS: { good: 0.1, poor: 0.25 },       // 累积布局偏移
-  FCP: { good: 1800, poor: 3000 },      // 首次内容绘制
-  TTFB: { good: 800, poor: 1800 },      // 首字节时间
-} as const;
-
-function evaluatePerformance(metric: PerformanceMetric) {
-  const threshold = PERFORMANCE_THRESHOLDS[metric.name as keyof typeof PERFORMANCE_THRESHOLDS];
-  
-  if (metric.value <= threshold.good) {
-    return 'good';
-  } else if (metric.value <= threshold.poor) {
-    return 'needs-improvement';
-  } else {
-    return 'poor';
-  }
-}
 ```
 
-## 图片优化和懒加载
+## 图片优化
 
-【必须】优化图片加载性能：
+【必须】优化图片加载：
 
 ```tsx
-// ✅ 正确 - 响应式图片
-import Image from 'next/image';
-
-function OptimizedImage({ src, alt, ...props }: ImageProps) {
-  return (
-    <Image
-      src={src}
-      alt={alt}
-      loading="lazy"
-      placeholder="blur"
-      blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ..."
-      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-      quality={85}
-      {...props}
-    />
-  );
-}
-
-// ✅ 正确 - 图片格式优化
-const imageFormats = {
-  webp: 'image/webp',
-  avif: 'image/avif',
-  jpeg: 'image/jpeg',
-} as const;
-
-function ResponsiveImage({ src, alt, width, height }: ResponsiveImageProps) {
-  return (
-    <picture>
-      <source srcSet={`${src}.avif`} type="image/avif" />
-      <source srcSet={`${src}.webp`} type="image/webp" />
-      <img
-        src={`${src}.jpg`}
-        alt={alt}
-        width={width}
-        height={height}
-        loading="lazy"
-        decoding="async"
-      />
-    </picture>
-  );
-}
-
-// ✅ 正确 - 图片懒加载 Hook
-function useIntersectionObserver(
-  elementRef: RefObject<Element>,
-  options: IntersectionObserverInit = {}
-) {
-  const [isIntersecting, setIsIntersecting] = useState(false);
+// ✅ 正确 - 图片懒加载
+function LazyImage({ src, alt, ...props }: ImageProps) {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
-    const element = elementRef.current;
-    if (!element) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsLoaded(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
 
-    const observer = new IntersectionObserver(([entry]) => {
-      setIsIntersecting(entry.isIntersecting);
-    }, options);
+    if (imgRef.current) {
+      observer.observe(imgRef.current);
+    }
 
-    observer.observe(element);
     return () => observer.disconnect();
-  }, [elementRef, options]);
-
-  return isIntersecting;
-}
-
-function LazyImage({ src, alt, ...props }: LazyImageProps) {
-  const imgRef = useRef<HTMLImageElement>(null);
-  const isVisible = useIntersectionObserver(imgRef, {
-    threshold: 0.1,
-    rootMargin: '50px',
-  });
+  }, []);
 
   return (
     <img
       ref={imgRef}
-      src={isVisible ? src : undefined}
+      src={isLoaded ? src : undefined}
       alt={alt}
       loading="lazy"
       {...props}
     />
   );
 }
-```
 
-## Bundle 分析和优化
-
-【必须】分析和优化打包体积：
-
-```typescript
-// ✅ 正确 - Webpack Bundle Analyzer 配置
-// next.config.js
-const withBundleAnalyzer = require('@next/bundle-analyzer')({
-  enabled: process.env.ANALYZE === 'true',
-});
-
-module.exports = withBundleAnalyzer({
-  webpack: (config, { isServer }) => {
-    // 分析打包体积
-    if (process.env.ANALYZE === 'true') {
-      config.optimization.splitChunks = {
-        chunks: 'all',
-        cacheGroups: {
-          vendor: {
-            test: /[\\/]node_modules[\\/]/,
-            name: 'vendors',
-            chunks: 'all',
-          },
-          common: {
-            name: 'common',
-            minChunks: 2,
-            chunks: 'all',
-            enforce: true,
-          },
-        },
-      };
-    }
-    return config;
-  },
-});
-
-// ✅ 正确 - 动态导入优化
-// 按需加载重型组件
-const HeavyChart = lazy(() => 
-  import('./HeavyChart').then(module => ({
-    default: module.HeavyChart
-  }))
-);
-
-const AdminPanel = lazy(() => 
-  import('./AdminPanel').then(module => ({
-    default: module.AdminPanel
-  }))
-);
-
-// 按需加载工具库
-const loadLodash = () => import('lodash-es');
-const loadMoment = () => import('moment');
-
-// ✅ 正确 - Tree Shaking 优化
-// 只导入需要的函数
-import { debounce, throttle } from 'lodash-es';
-import { format, parseISO } from 'date-fns';
-
-// 避免导入整个库
-// ❌ 错误
-import _ from 'lodash';
-import moment from 'moment';
-
-// ✅ 正确 - 代码分割策略
-// 路由级别分割
-const routes = [
-  {
-    path: '/dashboard',
-    component: lazy(() => import('../pages/Dashboard')),
-  },
-  {
-    path: '/profile',
-    component: lazy(() => import('../pages/Profile')),
-  },
-  {
-    path: '/settings',
-    component: lazy(() => import('../pages/Settings')),
-  },
-];
-
-// 功能级别分割
-const FeatureA = lazy(() => import('../features/FeatureA'));
-const FeatureB = lazy(() => import('../features/FeatureB'));
-```
-
-## 缓存策略
-
-【必须】实现多层缓存策略：
-
-```tsx
-// ✅ 正确 - HTTP 缓存配置
-// next.config.js
-module.exports = {
-  async headers() {
-    return [
-      {
-        source: '/static/(.*)',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-        ],
-      },
-      {
-        source: '/api/(.*)',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=300, s-maxage=600, stale-while-revalidate=86400',
-          },
-        ],
-      },
-    ];
-  },
-};
-
-// ✅ 正确 - Service Worker 缓存
-// public/sw.js
-const CACHE_NAME = 'app-cache-v1';
-const STATIC_ASSETS = [
-  '/',
-  '/static/css/main.css',
-  '/static/js/main.js',
-  '/manifest.json',
-];
-
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(STATIC_ASSETS))
-  );
-});
-
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // 缓存优先策略
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
-      })
-  );
-});
-
-// ✅ 正确 - 内存缓存
-class MemoryCache<T> {
-  private cache = new Map<string, { data: T; timestamp: number; ttl: number }>();
-
-  set(key: string, data: T, ttl: number = 300000): void {
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl,
-    });
-  }
-
-  get(key: string): T | null {
-    const item = this.cache.get(key);
-    if (!item) return null;
-
-    if (Date.now() - item.timestamp > item.ttl) {
-      this.cache.delete(key);
-      return null;
-    }
-
-    return item.data;
-  }
-
-  clear(): void {
-    this.cache.clear();
-  }
-}
-
-const apiCache = new MemoryCache<any>();
-
-// ✅ 正确 - React Query 缓存
-import { useQuery } from '@tanstack/react-query';
-
-function useUserData(userId: string) {
-  return useQuery({
-    queryKey: ['user', userId],
-    queryFn: () => fetchUser(userId),
-    staleTime: 5 * 60 * 1000, // 5分钟内数据视为新鲜
-    cacheTime: 10 * 60 * 1000, // 10分钟后清除缓存
-    retry: 3,
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
-  });
-}
-```
-
-## Suspense 和错误边界
-
-【必须】为客户端组件提供 fallback：
-
-```tsx
-// ✅ 正确
-function App() {
+// ✅ 正确 - 响应式图片格式
+function ResponsiveImage({ src, alt }: { src: string; alt: string }) {
   return (
-    <ErrorBoundary fallback={<ErrorFallback />}>
-      <Suspense fallback={<LoadingSpinner />}>
-        <UserDashboard />
-      </Suspense>
-    </ErrorBoundary>
+    <picture>
+      <source srcSet={`${src}.webp`} type="image/webp" />
+      <img src={`${src}.jpg`} alt={alt} loading="lazy" />
+    </picture>
   );
-}
-
-function LoadingSpinner() {
-  return (
-    <div className="flex items-center justify-center p-4">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-    </div>
-  );
-}
-
-// ✅ 正确 - 错误边界
-class ErrorBoundary extends Component<
-  { children: ReactNode; fallback: ComponentType<{ error: Error }> },
-  { hasError: boolean; error: Error | null }
-> {
-  constructor(props: any) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
-    // 发送错误到监控服务
-    sendErrorToService(error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      const FallbackComponent = this.props.fallback;
-      return <FallbackComponent error={this.state.error!} />;
-    }
-
-    return this.props.children;
-  }
 }
 ```
 
-## 动态加载
+## 代码分割
 
-【必须】对非关键组件使用懒加载：
+【必须】按需加载组件：
 
 ```tsx
-// ✅ 正确
 import { lazy, Suspense } from 'react';
 
+// ✅ 正确 - 路由级分割
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Settings = lazy(() => import('./pages/Settings'));
+
+function App() {
+  return (
+    <Suspense fallback={<div>加载中...</div>}>
+      <Routes>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/settings" element={<Settings />} />
+      </Routes>
+    </Suspense>
+  );
+}
+
+// ✅ 正确 - 组件级分割
 const HeavyChart = lazy(() => import('./HeavyChart'));
 
-function Dashboard() {
+function DashboardPage() {
   return (
     <div>
       <h1>仪表板</h1>
-      <Suspense fallback={<div>加载图表中...</div>}>
+      <Suspense fallback={<div>加载图表...</div>}>
         <HeavyChart />
       </Suspense>
     </div>
@@ -425,175 +119,82 @@ function Dashboard() {
 }
 ```
 
-## 内存优化
+## Bundle 优化
 
-【必须】清理副作用，防止内存泄漏：
+【必须】优化打包体积：
 
 ```tsx
-// ✅ 正确
-function WindowSizeTracker() {
-  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+// ✅ 正确 - 按需导入
+import { debounce, throttle } from 'lodash-es';
+import { format, parseISO } from 'date-fns';
 
-  useEffect(() => {
-    function handleResize() {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-    }
+// ❌ 错误 - 导入整个库
+import _ from 'lodash';
+import moment from 'moment';
 
-    window.addEventListener('resize', handleResize);
-    
-    // 清理函数防止内存泄漏
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
-  return <div>{windowSize.width} x {windowSize.height}</div>;
+// ✅ 正确 - 动态导入重型库
+async function loadChart() {
+  const { Chart } = await import('chart.js');
+  return Chart;
 }
 
-// ❌ 错误 - 未清理定时器
-function BadTimer() {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    setInterval(() => { // 内存泄漏
-      setCount(prev => prev + 1);
-    }, 1000);
-  }, []);
-
-  return <div>计数: {count}</div>;
+// ✅ 正确 - Tree Shaking 配置
+// package.json
+{
+  "sideEffects": false, // 启用 tree shaking
+  "type": "module"
 }
 ```
 
-## 渲染优化
+## React 渲染优化
 
-【必须】合理使用优化 Hooks：
+【必须】合理使用 React 优化：
 
 ```tsx
 // ✅ 正确 - React.memo
 const UserCard = React.memo(function UserCard({ user, onEdit }: UserCardProps) {
   return (
-    <div className="card">
+    <div>
       <h3>{user.name}</h3>
       <button onClick={() => onEdit(user)}>编辑</button>
     </div>
   );
 });
 
-// ✅ 正确 - useMemo 和 useCallback
-function UserList({ users, onUserEdit }: { users: User[]; onUserEdit: (user: User) => void }) {
+// ✅ 正确 - useMemo 缓存计算结果
+function UserList({ users }: { users: User[] }) {
   const sortedUsers = useMemo(() => {
     return users.sort((a, b) => a.name.localeCompare(b.name));
   }, [users]);
 
-  const handleUserEdit = useCallback((user: User) => {
-    onUserEdit(user);
-  }, [onUserEdit]);
-
   return (
     <div>
       {sortedUsers.map(user => (
-        <UserCard key={user.id} user={user} onEdit={handleUserEdit} />
+        <UserCard key={user.id} user={user} />
       ))}
     </div>
   );
 }
 
-// ✅ 正确 - 虚拟滚动
-import { FixedSizeList as List } from 'react-window';
-
-function VirtualizedList({ items }: { items: any[] }) {
-  const Row = ({ index, style }: { index: number; style: CSSProperties }) => (
-    <div style={style}>
-      <UserCard user={items[index]} />
-    </div>
-  );
+// ✅ 正确 - useCallback 缓存函数
+function TodoList({ todos, onToggle }: TodoListProps) {
+  const handleToggle = useCallback((id: string) => {
+    onToggle(id);
+  }, [onToggle]);
 
   return (
-    <List
-      height={600}
-      itemCount={items.length}
-      itemSize={80}
-      width="100%"
-    >
-      {Row}
-    </List>
+    <div>
+      {todos.map(todo => (
+        <TodoItem key={todo.id} todo={todo} onToggle={handleToggle} />
+      ))}
+    </div>
   );
 }
-```
-
-## 网络优化
-
-【必须】实现请求去重：
-
-```tsx
-// ✅ 正确
-const requestCache = new Map<string, Promise<any>>();
-
-function fetchWithDeduplication<T>(url: string): Promise<T> {
-  if (requestCache.has(url)) {
-    return requestCache.get(url)!;
-  }
-
-  const promise = fetch(url)
-    .then(response => response.json())
-    .finally(() => {
-      requestCache.delete(url);
-    });
-
-  requestCache.set(url, promise);
-  return promise;
-}
-
-// ✅ 正确 - 请求批处理
-class RequestBatcher {
-  private batch: Array<{ url: string; resolve: Function; reject: Function }> = [];
-  private timeoutId: NodeJS.Timeout | null = null;
-
-  add<T>(url: string): Promise<T> {
-    return new Promise((resolve, reject) => {
-      this.batch.push({ url, resolve, reject });
-      
-      if (this.timeoutId) {
-        clearTimeout(this.timeoutId);
-      }
-      
-      this.timeoutId = setTimeout(() => {
-        this.flush();
-      }, 10); // 10ms 内的请求批处理
-    });
-  }
-
-  private async flush() {
-    const currentBatch = [...this.batch];
-    this.batch = [];
-    this.timeoutId = null;
-
-    try {
-      const urls = currentBatch.map(item => item.url);
-      const responses = await Promise.all(
-        urls.map(url => fetch(url).then(res => res.json()))
-      );
-
-      currentBatch.forEach((item, index) => {
-        item.resolve(responses[index]);
-      });
-    } catch (error) {
-      currentBatch.forEach(item => {
-        item.reject(error);
-      });
-    }
-  }
-}
-
-const batcher = new RequestBatcher();
 ```
 
 ## 用户交互优化
 
-【必须】实现防抖：
+【必须】实现防抖和节流：
 
 ```tsx
 // ✅ 正确 - 防抖 Hook
@@ -624,16 +225,14 @@ function SearchInput({ onSearch }: { onSearch: (query: string) => void }) {
 
   return (
     <input
-      type="text"
       value={query}
       onChange={(e) => setQuery(e.target.value)}
       placeholder="搜索..."
-      className="w-full p-2 border rounded"
     />
   );
 }
 
-// ✅ 正确 - 节流 Hook
+// ✅ 正确 - 节流 Hook  
 function useThrottle<T>(value: T, delay: number): T {
   const [throttledValue, setThrottledValue] = useState<T>(value);
   const lastRan = useRef(Date.now());
@@ -653,123 +252,121 @@ function useThrottle<T>(value: T, delay: number): T {
 }
 ```
 
-## 代码分割
+## 缓存策略
 
-【必须】按路由分割：
+【推荐】实现基础缓存：
 
 ```tsx
-// ✅ 正确
-import { lazy } from 'react';
-import { Routes, Route } from 'react-router-dom';
+// ✅ 正确 - React Query 缓存
+import { useQuery } from '@tanstack/react-query';
 
-const Home = lazy(() => import('./pages/Home'));
-const Profile = lazy(() => import('./pages/Profile'));
-const Settings = lazy(() => import('./pages/Settings'));
-
-function App() {
-  return (
-    <Suspense fallback={<div>加载中...</div>}>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/settings" element={<Settings />} />
-      </Routes>
-    </Suspense>
-  );
+function useUserData(userId: string) {
+  return useQuery({
+    queryKey: ['user', userId],
+    queryFn: () => fetchUser(userId),
+    staleTime: 5 * 60 * 1000, // 5分钟缓存
+    cacheTime: 10 * 60 * 1000, // 10分钟后清除
+  });
 }
 
-// ✅ 正确示例 - 按需导入工具库
-// 好的做法：只导入需要的函数
-import { debounce, throttle } from 'lodash-es';
+// ✅ 正确 - 内存缓存
+const cache = new Map<string, { data: any; timestamp: number }>();
 
-// ❌ 错误示例：导入整个库
-import _ from 'lodash'; // 这会导入整个 lodash 库
+function getCachedData(key: string, ttl: number = 300000) {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < ttl) {
+    return cached.data;
+  }
+  return null;
+}
+
+function setCachedData(key: string, data: any) {
+  cache.set(key, { data, timestamp: Date.now() });
+}
 ```
 
-## 性能监控和分析
+## 内存泄漏防护
 
-【必须】建立性能监控体系：
+【必须】清理副作用：
 
 ```tsx
-// ✅ 正确 - 性能监控服务
-class PerformanceMonitor {
-  private metrics: Map<string, number[]> = new Map();
+// ✅ 正确 - 清理事件监听器
+function WindowSizeTracker() {
+  const [size, setSize] = useState({ width: 0, height: 0 });
 
-  startTiming(label: string): () => void {
-    const start = performance.now();
+  useEffect(() => {
+    function handleResize() {
+      setSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    }
+
+    window.addEventListener('resize', handleResize);
     
     return () => {
-      const duration = performance.now() - start;
-      this.recordMetric(label, duration);
+      window.removeEventListener('resize', handleResize);
     };
-  }
-
-  recordMetric(label: string, value: number): void {
-    if (!this.metrics.has(label)) {
-      this.metrics.set(label, []);
-    }
-    this.metrics.get(label)!.push(value);
-  }
-
-  getMetrics(label: string): { avg: number; min: number; max: number; count: number } {
-    const values = this.metrics.get(label) || [];
-    if (values.length === 0) {
-      return { avg: 0, min: 0, max: 0, count: 0 };
-    }
-
-    const sum = values.reduce((a, b) => a + b, 0);
-    return {
-      avg: sum / values.length,
-      min: Math.min(...values),
-      max: Math.max(...values),
-      count: values.length,
-    };
-  }
-
-  report(): void {
-    const report: Record<string, any> = {};
-    for (const [label] of this.metrics) {
-      report[label] = this.getMetrics(label);
-    }
-    
-    // 发送到分析服务
-    fetch('/api/performance', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(report),
-    });
-  }
-}
-
-const monitor = new PerformanceMonitor();
-
-// 使用示例
-function ExpensiveComponent() {
-  useEffect(() => {
-    const endTiming = monitor.startTiming('ExpensiveComponent.render');
-    
-    // 执行耗时操作
-    performExpensiveOperation();
-    
-    endTiming();
   }, []);
 
-  return <div>组件内容</div>;
+  return <div>{size.width} x {size.height}</div>;
+}
+
+// ✅ 正确 - 清理定时器
+function Timer() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCount(prev => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return <div>计数: {count}</div>;
 }
 ```
 
-## 性能检查清单
+## 虚拟滚动
 
-【必须】在部署前确认：
+【推荐】处理大量数据：
 
-- [ ] **Web Vitals**：LCP < 2.5s, FID < 100ms, CLS < 0.1
-- [ ] **Bundle 大小**：主包 < 250KB，总体积 < 1MB
-- [ ] **图片优化**：使用 WebP/AVIF 格式，启用懒加载
-- [ ] **代码分割**：路由和功能模块正确分割
-- [ ] **缓存策略**：静态资源长期缓存，API 适当缓存
-- [ ] **内存泄漏**：清理所有事件监听器和定时器
-- [ ] **渲染优化**：合理使用 memo、useMemo、useCallback
-- [ ] **网络优化**：实现请求去重和批处理
-- [ ] **用户交互**：搜索防抖，滚动节流
-- [ ] **错误边界**：关键组件有错误边界保护
-- [ ] **监控集成**：性能指标正确上报
+```tsx
+import { FixedSizeList as List } from 'react-window';
+
+// ✅ 正确 - 虚拟滚动
+function VirtualizedList({ items }: { items: any[] }) {
+  const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => (
+    <div style={style}>
+      <UserCard user={items[index]} />
+    </div>
+  );
+
+  return (
+    <List
+      height={600}
+      itemCount={items.length}
+      itemSize={80}
+      width="100%"
+    >
+      {Row}
+    </List>
+  );
+}
+```
+
+## 检查清单
+
+部署前确认：
+- [ ] **核心指标**：LCP < 2.5s, FID < 100ms, CLS < 0.1
+- [ ] **Bundle 大小**：主包 < 250KB，按需导入第三方库
+- [ ] **图片优化**：使用 WebP 格式和懒加载
+- [ ] **代码分割**：路由和重型组件正确分割
+- [ ] **React 优化**：合理使用 memo、useMemo、useCallback
+- [ ] **用户交互**：搜索防抖、滚动节流
+- [ ] **内存管理**：清理所有事件监听器和定时器
+- [ ] **错误处理**：关键组件有错误边界保护
+- [ ] **缓存策略**：API 数据适当缓存
+- [ ] **虚拟滚动**：大列表使用虚拟滚动
+

@@ -1,0 +1,62 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 核心规则索引
+
+## 🎯 优先级说明
+
+- **[P0]** 项目必须遵循，影响基础功能
+- **[P1]** 强烈推荐，影响代码质量  
+- **[P2]** 可选优化，影响开发效率
+
+## 📋 P0 核心规则摘要
+
+### 技术栈基础 [P0]
+- **框架**: React 18+ + TypeScript 5+
+- **样式**: Tailwind CSS + shadcn/ui
+- **构建**: Vite 5+
+- **包管理**: 优先 pnpm，锁定版本
+
+### 代码质量 [P0]
+- **类型安全**: 所有变量、函数必须定义类型
+- **导出方式**: 优先命名导出，避免默认导出
+- **命名规范**: 文件用 kebab-case，变量用 camelCase
+- **错误处理**: 所有 API 调用必须有错误处理
+
+### 安全基础 [P0]
+- **输入验证**: 使用 Zod 验证所有用户输入
+- **XSS 防护**: 避免 dangerouslySetInnerHTML，使用 DOMPurify
+- **敏感数据**: 禁止在客户端存储敏感信息
+
+## 🚀 新项目快速检查
+
+### 启动时必须确认 [P0]
+- [ ] TypeScript 严格模式已开启
+- [ ] ESLint + Prettier 已配置
+- [ ] Git commit 规范已设置
+- [ ] 错误边界组件已实现
+- [ ] 基础安全措施已部署
+
+### 开发时必须遵循 [P0]
+- [ ] 每个组件都有 TypeScript 类型定义
+- [ ] 所有 API 调用都有错误处理
+- [ ] 敏感操作都有输入验证
+- [ ] 组件使用命名导出
+- [ ] 提交消息符合规范格式
+
+## 📚 详细规范索引
+
+| 领域 | 文件 | 核心内容 |
+|------|------|----------|
+| TypeScript | `typescript-standards.mdc` | 类型定义、泛型使用 |
+| React | `react-standards.mdc` | 组件规范、Hooks 使用 |
+| 样式 | `styling-standards.mdc` | Tailwind、响应式设计 |
+| 安全 | `security-standards.mdc` | 输入验证、XSS 防护 |
+| 错误处理 | `error-handling.mdc` | 统一错误处理策略 |
+| 性能 | `performance-optimization.mdc` | 优化技术和监控 |
+| 测试 | `testing-standards.mdc` | 测试策略和配置 |
+| API | `api-design.mdc` | RESTful 设计原则 |
+
+

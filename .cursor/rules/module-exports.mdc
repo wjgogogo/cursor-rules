@@ -5,106 +5,104 @@ alwaysApply: false
 ---
 # 模块导出规范
 
-## 导出方式
+## 核心原则
 
 【必须】遵循：
-- **优先使用命名导出**，特别是组件，避免默认导出
-- 为复杂模块创建索引文件（`index.ts`）
+- **优先使用命名导出**，避免默认导出
+- 为复杂模块创建索引文件
 - 避免循环依赖
 
+## 导出方式
+
+【必须】使用命名导出：
+
 ```tsx
-// ✅ 正确 - 组件命名导出
+// ✅ 正确 - 命名导出
 export interface ButtonProps {
-  // ...
+  variant: 'primary' | 'secondary';
+  children: React.ReactNode;
 }
 
-export function Button(props: ButtonProps) {
-  // ...
+export function Button({ variant, children }: ButtonProps) {
+  return <button className={variant}>{children}</button>;
 }
 
-// ✅ 正确 - index.ts
-export * from './Button';
-export * from './Input';
-export * from './Select';
-
-// ✅ 正确 - 多个命名导出
-export { Button } from './Button';
-export { Input } from './Input';
-export { type ButtonProps, type InputProps } from './types';
-
-// ❌ 错误 - 使用默认导出
+// ❌ 错误 - 默认导出
 export default function Button() {
-  // ...
+  // 避免使用
 }
-
-// ❌ 错误 - 混合导出
-export default Button;
-export { ButtonProps }; // 应统一使用命名导出
 ```
 
-## 类型导出
+## 类型和值分离
 
-【必须】分离类型和值导出：
+【必须】清晰区分类型和值：
 
 ```tsx
-// ✅ 正确
+// ✅ 正确 - 类型导出
 export interface User {
   id: string;
   name: string;
+  email: string;
 }
 
 export type UserRole = 'admin' | 'user' | 'guest';
 
+// ✅ 正确 - 函数导出
 export function createUser(userData: User): Promise<User> {
-  // 实现
+  return fetch('/api/users', {
+    method: 'POST',
+    body: JSON.stringify(userData),
+  }).then(res => res.json());
+}
+
+export function validateUser(user: User): boolean {
+  return user.name.length > 0 && user.email.includes('@');
 }
 ```
 
 ## 索引文件组织
 
-【必须】按功能分组：
+【推荐】按功能分组导出：
 
 ```tsx
 // ✅ 正确 - components/index.ts
 // UI 组件
-export { Button } from './ui/Button';
-export { Input } from './ui/Input';
-export { Modal } from './ui/Modal';
-
-// 布局组件
-export { Header } from './layout/Header';
-export { Footer } from './layout/Footer';
-
-// 功能组件
-export { UserProfile } from './features/UserProfile';
-export { ProductList } from './features/ProductList';
+export { Button } from './Button';
+export { Input } from './Input';
+export { Modal } from './Modal';
 
 // 类型导出
-export type { ButtonProps } from './ui/Button';
-export type { InputProps } from './ui/Input';
+export type { ButtonProps } from './Button';
+export type { InputProps } from './Input';
+export type { ModalProps } from './Modal';
+
+// ✅ 正确 - utils/index.ts
+export { formatDate, parseDate } from './date';
+export { validateEmail, validatePhone } from './validation';
+export { debounce, throttle } from './timing';
 ```
 
 ## 导入规范
 
-【必须】按来源分组：
+【必须】按来源分组导入：
 
 ```tsx
-// ✅ 正确 - 导入组织
-// React 相关
+// ✅ 正确 - 导入顺序
+// 1. React 相关
 import { useState, useEffect } from 'react';
 import type { FC, ReactNode } from 'react';
 
-// 第三方库
+// 2. 第三方库
 import { clsx } from 'clsx';
 import { z } from 'zod';
 
-// 内部模块
-import { Button, Input } from '@/components/ui';
-import { useAuth } from '@/hooks/useAuth';
-import type { User, ApiResponse } from '@/types/api';
+// 3. 内部模块（绝对路径）
+import { Button, Input } from '@/components';
+import { useAuth } from '@/hooks';
+import type { User, ApiResponse } from '@/types';
 
-// 相对导入
-import { validateForm } from '../utils/validation';
+// 4. 相对导入
+import { validateForm } from '../utils';
 import type { FormData } from './types';
 ```
 
@@ -113,26 +111,68 @@ import type { FormData } from './types';
 【必须】使用共享类型文件：
 
 ```tsx
-// ✅ 正确 - 避免循环依赖
-
-// types/shared.ts - 共享类型
+// ✅ 正确 - types/index.ts
 export interface User {
   id: string;
   name: string;
+  email: string;
 }
 
-// services/userService.ts
-import type { User } from '../types/shared';
+export interface Product {
+  id: string;
+  name: string;
+  price: number;
+}
+
+// ✅ 正确 - services/userService.ts
+import type { User } from '@/types';
 
 export function fetchUser(id: string): Promise<User> {
-  // 实现
+  return fetch(`/api/users/${id}`).then(res => res.json());
 }
 
-// components/UserCard.tsx
-import type { User } from '../types/shared';
-import { fetchUser } from '../services/userService';
+// ✅ 正确 - components/UserCard.tsx
+import type { User } from '@/types';
 
-export function UserCard({ userId }: { userId: string }) {
-  // 实现
+export function UserCard({ user }: { user: User }) {
+  return (
+    <div>
+      <h3>{user.name}</h3>
+      <p>{user.email}</p>
+    </div>
+  );
 }
 ```
+
+## 实用模式
+
+【推荐】常用的导出模式：
+
+```tsx
+// ✅ 批量重导出
+export { Button, Input, Modal } from './components';
+export type { ButtonProps, InputProps, ModalProps } from './components';
+
+// ✅ 命名空间导出
+export * as UserAPI from './api/user';
+export * as ProductAPI from './api/product';
+
+// ✅ 条件导出
+export { DevTools } from './dev-tools';
+// 在 index.ts 中
+export * from './core';
+if (process.env.NODE_ENV === 'development') {
+  export * from './dev-tools';
+}
+```
+
+## 检查清单
+
+发布前确认：
+
+- [ ] **命名导出**：使用命名导出而非默认导出
+- [ ] **类型分离**：类型和值导出清晰分离
+- [ ] **索引文件**：复杂模块有合理的索引文件
+- [ ] **导入顺序**：导入按来源分组并排序
+- [ ] **无循环依赖**：模块间无循环引用
+- [ ] **路径一致**：使用一致的导入路径约定 

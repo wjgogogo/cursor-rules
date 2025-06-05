@@ -1,11 +1,11 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: false
 ---
 # 测试规范
 
-## 测试策略
+## 测试策略 [P1]
 
 【必须】遵循测试金字塔原则：
 - **单元测试（70%）**: 测试独立函数和组件
@@ -131,43 +131,6 @@ describe('UserForm 集成测试', () => {
     });
   });
 });
-
-// ✅ 正确 - API 集成测试
-import { rest } from 'msw';
-import { setupServer } from 'msw/node';
-import { UserService } from './UserService';
-
-const server = setupServer(
-  rest.get('/api/users', (req, res, ctx) => {
-    return res(ctx.json([
-      { id: '1', name: '张三', email: 'zhangsan@example.com' }
-    ]));
-  }),
-  
-  rest.post('/api/users', (req, res, ctx) => {
-    return res(ctx.json({ id: '2', ...req.body }));
-  })
-);
-
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
-
-describe('UserService', () => {
-  it('应该获取用户列表', async () => {
-    const users = await UserService.getUsers();
-    expect(users).toHaveLength(1);
-    expect(users[0].name).toBe('张三');
-  });
-
-  it('应该创建新用户', async () => {
-    const newUser = { name: '李四', email: 'lisi@example.com' };
-    const createdUser = await UserService.createUser(newUser);
-    
-    expect(createdUser.id).toBe('2');
-    expect(createdUser.name).toBe('李四');
-  });
-});
 ```
 
 ## E2E 测试
@@ -210,29 +173,6 @@ test.describe('用户认证流程', () => {
     await expect(page.locator('[data-testid="error-message"]')).toContainText('登录失败');
   });
 });
-
-test.describe('用户管理', () => {
-  test.beforeEach(async ({ page }) => {
-    // 登录前置条件
-    await page.goto('/login');
-    await page.fill('[data-testid="email"]', 'admin@example.com');
-    await page.fill('[data-testid="password"]', 'admin123');
-    await page.click('[data-testid="login-button"]');
-    await expect(page).toHaveURL('/dashboard');
-  });
-
-  test('应该能够创建新用户', async ({ page }) => {
-    await page.goto('/users');
-    await page.click('[data-testid="add-user-button"]');
-    
-    await page.fill('[data-testid="user-name"]', '新用户');
-    await page.fill('[data-testid="user-email"]', 'newuser@example.com');
-    await page.click('[data-testid="save-button"]');
-    
-    await expect(page.locator('[data-testid="success-message"]')).toContainText('用户创建成功');
-    await expect(page.locator('text=新用户')).toBeVisible();
-  });
-});
 ```
 
 ## 测试配置
@@ -253,13 +193,6 @@ export default defineConfig({
     coverage: {
       provider: 'c8',
       reporter: ['text', 'json', 'html'],
-      exclude: [
-        'node_modules/',
-        'src/test/',
-        '**/*.d.ts',
-        '**/*.config.*',
-        '**/coverage/**',
-      ],
       thresholds: {
         global: {
           branches: 80,
@@ -298,13 +231,6 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: vi.fn(),
   })),
 });
-
-// Mock IntersectionObserver
-global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
 ```
 
 ```typescript
@@ -314,10 +240,7 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
@@ -328,18 +251,6 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-    {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
-    },
   ],
   webServer: {
     command: 'npm run dev',
@@ -349,9 +260,71 @@ export default defineConfig({
 });
 ```
 
+## Mock 使用
+
+【必须】正确使用 Mock：
+
+```typescript
+// ✅ 正确 - API Mock
+import { vi } from 'vitest';
+
+// Mock 整个模块
+vi.mock('./api/userService', () => ({
+  UserService: {
+    getUsers: vi.fn(),
+    createUser: vi.fn(),
+    updateUser: vi.fn(),
+    deleteUser: vi.fn(),
+  },
+}));
+
+// Mock fetch
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
+describe('API 调用', () => {
+  beforeEach(() => {
+    mockFetch.mockClear();
+  });
+
+  it('应该调用正确的 API', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: '1', name: '张三' }),
+    });
+
+    const user = await fetchUser('1');
+    
+    expect(mockFetch).toHaveBeenCalledWith('/api/users/1');
+    expect(user.name).toBe('张三');
+  });
+});
+
+// ✅ 正确 - 时间 Mock
+describe('时间相关测试', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('应该在延迟后执行', () => {
+    const callback = vi.fn();
+    setTimeout(callback, 1000);
+    
+    expect(callback).not.toHaveBeenCalled();
+    
+    vi.advanceTimersByTime(1000);
+    expect(callback).toHaveBeenCalled();
+  });
+});
+```
+
 ## 测试数据管理
 
-【必须】使用测试工厂和 Fixtures：
+【推荐】使用测试工厂：
 
 ```typescript
 // ✅ 正确 - 测试工厂
@@ -381,96 +354,6 @@ describe('UserList', () => {
     });
   });
 });
-
-// ✅ 正确 - 测试 Fixtures
-// e2e/fixtures/users.json
-{
-  "testUser": {
-    "email": "test@example.com",
-    "password": "password123",
-    "name": "测试用户"
-  },
-  "adminUser": {
-    "email": "admin@example.com",
-    "password": "admin123",
-    "name": "管理员"
-  }
-}
-
-// 在 E2E 测试中使用
-import users from '../fixtures/users.json';
-
-test('管理员登录', async ({ page }) => {
-  const { adminUser } = users;
-  await page.goto('/login');
-  await page.fill('[data-testid="email"]', adminUser.email);
-  await page.fill('[data-testid="password"]', adminUser.password);
-  await page.click('[data-testid="login-button"]');
-});
-```
-
-## Mock 和 Stub
-
-【必须】正确使用 Mock：
-
-```typescript
-// ✅ 正确 - API Mock
-import { vi } from 'vitest';
-
-// Mock 整个模块
-vi.mock('./api/userService', () => ({
-  UserService: {
-    getUsers: vi.fn(),
-    createUser: vi.fn(),
-    updateUser: vi.fn(),
-    deleteUser: vi.fn(),
-  },
-}));
-
-// Mock 特定函数
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
-
-describe('API 调用', () => {
-  beforeEach(() => {
-    mockFetch.mockClear();
-  });
-
-  it('应该调用正确的 API', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ id: '1', name: '张三' }),
-    });
-
-    const user = await fetchUser('1');
-    
-    expect(mockFetch).toHaveBeenCalledWith('/api/users/1');
-    expect(user.name).toBe('张三');
-  });
-});
-
-// ✅ 正确 - 时间 Mock
-import { vi } from 'vitest';
-
-describe('时间相关测试', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('应该在延迟后执行', () => {
-    const callback = vi.fn();
-    setTimeout(callback, 1000);
-    
-    expect(callback).not.toHaveBeenCalled();
-    
-    vi.advanceTimersByTime(1000);
-    expect(callback).toHaveBeenCalled();
-  });
-});
 ```
 
 ## 测试覆盖率要求
@@ -488,8 +371,7 @@ describe('时间相关测试', () => {
     "test": "vitest",
     "test:coverage": "vitest --coverage",
     "test:ui": "vitest --ui",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e": "playwright test"
   }
 }
 ```
@@ -559,60 +441,17 @@ const user = {
 };
 ```
 
-## 持续集成中的测试
-
-【必须】在 CI 中运行所有测试：
-
-```yaml
-# .github/workflows/test.yml
-name: Tests
-on: [push, pull_request]
-
-jobs:
-  unit-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: 'pnpm'
-      - run: pnpm install
-      - run: pnpm run test:coverage
-      - uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage/coverage-final.json
-
-  e2e-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: 'pnpm'
-      - run: pnpm install
-      - run: pnpm run build
-      - run: npx playwright install --with-deps
-      - run: pnpm run test:e2e
-      - uses: actions/upload-artifact@v3
-        if: failure()
-        with:
-          name: playwright-report
-          path: playwright-report/
-```
-
-## 测试检查清单
+## 检查清单
 
 【必须】在提交前确认：
 
 - [ ] **单元测试**：所有新功能都有对应的单元测试
 - [ ] **集成测试**：关键用户流程有集成测试覆盖
 - [ ] **E2E 测试**：主要业务流程有 E2E 测试
-- [ ] **覆盖率**：达到最低覆盖率要求
+- [ ] **覆盖率**：达到最低覆盖率要求（80%）
 - [ ] **测试通过**：所有测试都能通过
 - [ ] **Mock 清理**：正确清理 Mock 和 Stub
 - [ ] **测试隔离**：测试之间相互独立
 - [ ] **测试数据**：使用有意义的测试数据
 - [ ] **错误场景**：覆盖错误和边界情况
-- [ ] **性能测试**：关键功能有性能测试
+- [ ] **测试命名**：使用描述性的测试名称
