@@ -1,7 +1,7 @@
 ---
-description: Git 提交消息规范
+description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 # Git 提交消息规范
 

@@ -215,7 +215,7 @@ function handleApiResponse(response: unknown) {
 }
 
 // ✅ 正确 - 自定义断言函数
-function assertIsUser(value: unknown): asserts value is User {
+function assertIsUser(value: unknown): value is User {
   if (!isUser(value)) {
     throw new Error('Value is not a valid User');
   }
