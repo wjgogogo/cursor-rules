@@ -155,3 +155,28 @@ const createUser = async () => {};
 const updateUser = async () => {};
 const deleteUser = async () => {};
 ```
+
+## 🔍 检查清单
+
+在进行代码编写和审查时，【必须】确保所有命名均遵循以下规范：
+
+### 文件与目录命名
+- [ ] **[P0]** 文件/目录命名：所有文件名（如 `user-card.tsx`, `use-auth.ts`）和目录名（如 `components/user-profile/`）是否都严格使用 `kebab-case` 格式？
+
+### 代码内标识符命名
+- [ ] **[P0]** 变量和函数名：普通变量和函数名是否使用 `camelCase` (如 `userName`, `fetchData`)？
+- [ ] **[P0]** 类、组件、接口、类型名：类名（`DataService`）、React 组件名（`UserCard`）、接口名（`UserData`）和类型别名（`ButtonVariant`）是否使用 `PascalCase`？
+- [ ] **[P0]** 常量名：全局或模块级常量（如 `API_BASE_URL`, `MAX_RETRIES`）是否使用 `UPPER_SNAKE_CASE`？
+- [ ] **[P0]** 布尔值命名：布尔型变量或属性名是否使用了明确的前缀（如 `isLoading`, `hasPermission`, `shouldShowModal`, `canEdit`）？
+- [ ] **[P0]** 函数命名描述性：函数名是否以动词开头，并清晰描述其行为（如 `fetchUserProfile`, `handleSubmitForm`）？
+- [ ] **[P0]** 自定义 Hooks 命名：自定义 React Hooks 是否都以 `use` 开头（如 `useLocalStorage`, `useUserProfile`）？
+- [ ] **[P0]** 组件 Props 命名：组件的 Props 接口和属性名是否直观反映其用途，且遵循相应的 `PascalCase` (接口) 和 `camelCase` (属性) 规范？
+- [ ] **[P0]** API 和服务命名：API 客户端类或服务相关标识符是否清晰描述其功能 (如 `UserApiClient`, `API_ENDPOINTS`)?
+
+### 禁止的命名模式
+- [ ] **[P0]** 避免无意义缩写/简写：是否避免了不易理解的缩写或简写（如用 `user` 而非 `usr`）？
+- [ ] **[P0]** 避免数字后缀：是否避免了无意义的数字后缀（如用 `activeUsers` 而非 `users1`）？
+- [ ] **[P0]** 避免类型信息冗余：变量名中是否避免了包含其类型信息（如用 `isLoading` 而非 `isLoadingBoolean`, 用 `users` 而非 `userArray`）？
+
+### 一致性
+- [ ] **[P1]** 团队/项目一致性：在整个项目或团队中，特定场景下的命名（如事件处理函数前缀 `handle...`，布尔状态前缀 `is/has...`）是否保持了风格一致性？

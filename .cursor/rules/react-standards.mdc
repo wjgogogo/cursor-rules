@@ -314,16 +314,32 @@ function ErrorBoundary({ children, fallback }: {
 }
 ```
 
-## 检查清单
+## 🔍 检查清单
 
-开发时确认：
+在开发和审查 React 组件及相关逻辑时，请对照以下检查项：
 
-- [ ] **函数组件**：使用函数组件和 Hooks
-- [ ] **TypeScript**：所有 Props 和状态都有类型定义  
-- [ ] **命名导出**：避免使用默认导出
-- [ ] **Hook 规则**：不在条件语句中使用 Hooks
-- [ ] **状态管理**：合理选择 useState 或 useReducer
-- [ ] **事件处理**：正确处理表单和用户交互
-- [ ] **条件渲染**：清晰的错误和加载状态处理
-- [ ] **性能优化**：适当使用 memo、useMemo、useCallback
-- [ ] **副作用清理**：清理事件监听器和定时器 
+### 核心要求 & 组件定义 [P0]
+- [ ] **[P0]** 函数组件与 Hooks：是否所有新组件都使用函数组件和 Hooks 实现，避免了类组件？
+- [ ] **[P0]** TypeScript 类型定义：组件的所有 Props 和内部 State 是否都有明确的 TypeScript 类型定义？（详细规范参考 `typescript-standards.mdc`）
+- [ ] **[P0]** Props 默认值与解构：Props 是否清晰解构，并为可选 Props 提供了合理的默认值？
+- [ ] **[P0]** 命名导出：组件是否使用命名导出 (`export function MyComponent`)，避免了默认导出？（参考 `module-exports.mdc`）
+- [ ] **[P0]** Hooks 使用规则：
+    - 是否仅在 React 函数组件的顶层或自定义 Hooks 中调用 Hooks？
+    - 是否避免了在循环、条件语句或嵌套函数中调用 Hooks？
+    - 对于 `useEffect` 等会产生副作用的 Hooks，是否正确处理了依赖项数组，并在必要时返回了清理函数？
+- [ ] **[P0]** 自定义 Hooks 命名：所有自定义 Hooks 的名称是否都以 `use` 开头 (如 `useLocalStorage`)？
+- [ ] **[P0]** 事件处理规范：事件处理函数（如 `handleSubmit`, `handleInputChange`）是否正确绑定，并使用了正确的事件类型 (如 `React.FormEvent`, `React.ChangeEvent`)？
+- [ ] **[P0]** 条件渲染清晰性：组件内的条件渲染逻辑是否清晰易懂，避免了过于复杂的 JSX 表达式？（如使用早期返回、变量赋值或封装组件）
+- [ ] **[P0]** 列表渲染与 Keys：渲染列表时，是否为每个列表项提供了稳定且唯一的 `key` 属性？
+
+### 状态管理与代码质量 [P1]
+- [ ] **[P1]** 状态管理策略：是否根据状态的复杂性和作用域选择了合适的状态管理方法（如局部 state、状态提升、`useReducer`、Context API 或 Zustand 等外部库）？
+- [ ] **[P1]** 逻辑复用 (自定义 Hooks)：对于组件间的可复用逻辑（如有副作用的逻辑、复杂状态逻辑），是否封装成了自定义 Hooks？
+- [ ] **[P1]** Context API 使用：使用 Context API 时，是否注意了其可能引起的重渲染问题，并考虑了优化手段（如拆分 Context、使用 `useMemo`）？
+- [ ] **[P1]** JSX 代码风格：JSX 的书写是否遵循了良好的风格（如多属性换行、boolean 属性简写、合理的嵌套和缩进）？
+- [ ] **[P1]** 不可变性：在更新 state（特别是对象或数组）时，是否遵循了不可变性原则，创建了新的对象/数组副本而非直接修改原状态？
+
+### 高级模式与性能 [P2]
+- [ ] **[P2]** 高阶组件 (HOC) / Render Props：是否理解并仅在合适场景下（如需横切关注点逻辑复用且自定义 Hook 不适用时）使用 HOC 或 Render Props 模式？
+- [ ] **[P2]** 性能优化应用：是否结合 `performance-optimization.mdc` 中的规范，对组件进行了必要的性能优化（如 `React.memo`, `useMemo`, `useCallback`, 虚拟列表等）？
+- [ ] **[P2]** 错误边界：对于可能抛出错误的组件子树，是否使用了错误边界（Error Boundaries）组件来捕获错误并展示备用 UI？

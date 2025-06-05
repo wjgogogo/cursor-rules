@@ -1,0 +1,360 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# 代码质量工具配置
+
+## ESLint 配置 [P0]
+
+【必须】TypeScript + React ESLint 配置：
+
+```javascript
+// .eslintrc.js
+module.exports = {
+  root: true,
+  env: {
+    browser: true,
+    es2022: true,
+    node: true,
+  },
+  extends: [
+    'eslint:recommended',
+    '@typescript-eslint/recommended',
+    'plugin:react-hooks/recommended',
+    'plugin:react/recommended',
+    'plugin:react/jsx-runtime',
+  ],
+  ignorePatterns: ['dist', '.eslintrc.js'],
+  parser: '@typescript-eslint/parser',
+  parserOptions: {
+    ecmaVersion: 'latest',
+    sourceType: 'module',
+    ecmaFeatures: {
+      jsx: true,
+    },
+  },
+  plugins: [
+    'react-refresh',
+    '@typescript-eslint',
+    'react',
+  ],
+  rules: {
+    // React
+    'react-refresh/only-export-components': [
+      'warn',
+      { allowConstantExport: true },
+    ],
+    'react/prop-types': 'off', // TypeScript 处理
+    'react/react-in-jsx-scope': 'off', // React 17+
+    
+    // TypeScript
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      { argsIgnorePattern: '^_' },
+    ],
+    '@typescript-eslint/explicit-function-return-type': 'off',
+    '@typescript-eslint/explicit-module-boundary-types': 'off',
+    '@typescript-eslint/no-explicit-any': 'error',
+    '@typescript-eslint/no-non-null-assertion': 'error',
+    '@typescript-eslint/prefer-nullish-coalescing': 'error',
+    '@typescript-eslint/prefer-optional-chain': 'error',
+    
+    // 通用
+    'no-console': ['warn', { allow: ['warn', 'error'] }],
+    'prefer-const': 'error',
+    'no-var': 'error',
+    'object-shorthand': 'error',
+    'prefer-template': 'error',
+  },
+  settings: {
+    react: {
+      version: 'detect',
+    },
+  },
+};
+```
+
+## Prettier 配置 [P0]
+
+【必须】代码格式化配置：
+
+```json
+// .prettierrc
+{
+  "semi": true,
+  "trailingComma": "es5",
+  "singleQuote": true,
+  "printWidth": 80,
+  "tabWidth": 2,
+  "useTabs": false,
+  "bracketSpacing": true,
+  "bracketSameLine": false,
+  "arrowParens": "avoid",
+  "endOfLine": "lf",
+  "quoteProps": "as-needed",
+  "jsxSingleQuote": false,
+  "proseWrap": "preserve"
+}
+```
+
+```
+# .prettierignore
+node_modules
+dist
+build
+coverage
+.next
+.nuxt
+.cache
+*.min.js
+*.min.css
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+```
+
+## VS Code 配置 [P1]
+
+【推荐】VS Code 工作区设置：
+
+```json
+// .vscode/settings.json
+{
+  // 编辑器设置
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  
+  // TypeScript 设置
+  "typescript.preferences.includePackageJsonAutoImports": "auto",
+  "typescript.suggest.autoImports": true,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "typescript.preferences.organizeImports": true,
+  
+  // 文件设置
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  
+  // 排除文件
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/.git": true,
+    "**/coverage": true
+  },
+  
+  // 扩展设置
+  "emmet.includeLanguages": {
+    "typescript": "html",
+    "typescriptreact": "html"
+  },
+  
+  // Tailwind CSS
+  "tailwindCSS.includeLanguages": {
+    "typescript": "html",
+    "typescriptreact": "html"
+  },
+  "tailwindCSS.experimental.classRegex": [
+    ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+    ["cx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]
+  ]
+}
+```
+
+```json
+// .vscode/extensions.json
+{
+  "recommendations": [
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "bradlc.vscode-tailwindcss",
+    "ms-vscode.vscode-typescript-next",
+    "formulahendry.auto-rename-tag",
+    "christian-kohler.path-intellisense",
+    "ms-vscode.vscode-json",
+    "usernamehw.errorlens"
+  ]
+}
+```
+
+## Git Hooks 配置 [P0]
+
+【必须】提交前代码检查：
+
+```json
+// package.json (部分)
+{
+  "scripts": {
+    "prepare": "husky install"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,css}": [
+      "prettier --write"
+    ]
+  }
+}
+```
+
+```bash
+# .husky/pre-commit
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+npx lint-staged
+```
+
+```bash
+# .husky/commit-msg
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# 验证提交消息格式
+npx commitlint --edit $1
+```
+
+## TypeScript 严格检查 [P0]
+
+【必须】类型检查脚本：
+
+```json
+// package.json scripts 补充
+{
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "type-check:watch": "tsc --noEmit --watch",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext ts,tsx --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check-all": "npm run type-check && npm run lint && npm run format:check"
+  }
+}
+```
+
+## 编辑器配置 [P1]
+
+【推荐】通用编辑器配置：
+
+```ini
+# .editorconfig
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.json]
+indent_size = 2
+```
+
+## 常用开发脚本 [P1]
+
+【推荐】便利的开发脚本：
+
+```json
+// package.json scripts 完整版
+{
+  "scripts": {
+    // 开发
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    
+    // 代码质量
+    "type-check": "tsc --noEmit",
+    "type-check:watch": "tsc --noEmit --watch",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext ts,tsx --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    
+    // 综合检查
+    "check-all": "npm run type-check && npm run lint && npm run format:check",
+    "fix-all": "npm run lint:fix && npm run format",
+    
+    // Git hooks
+    "prepare": "husky install",
+    
+    // 清理
+    "clean": "rm -rf dist node_modules/.cache",
+    "clean:all": "rm -rf dist node_modules package-lock.json && npm install",
+    
+    // 依赖检查
+    "deps:check": "npx npm-check-updates",
+    "deps:update": "npx npm-check-updates -u && npm install"
+  }
+}
+```
+
+## 提交消息验证 [P1]
+
+【推荐】Commitlint 配置：
+
+```javascript
+// commitlint.config.js
+module.exports = {
+  extends: ['@commitlint/config-conventional'],
+  rules: {
+    'type-enum': [
+      2,
+      'always',
+      [
+        'feat',     // 新功能
+        'fix',      // 修复
+        'docs',     // 文档
+        'style',    // 格式
+        'refactor', // 重构
+        'perf',     // 性能
+        'test',     // 测试
+        'chore',    // 工具
+        'ci',       // CI
+        'build',    // 构建
+      ],
+    ],
+    'subject-max-length': [2, 'always', 50],
+    'subject-case': [2, 'never', ['upper-case']],
+  },
+};
+```
+
+## 🔍 检查清单
+
+在设置代码质量工具时，【必须】确认：
+
+### 基础工具 [P0]
+- [ ] **[P0]** ESLint 配置：是否正确配置了 TypeScript 和 React 规则？
+- [ ] **[P0]** Prettier 配置：是否设置了统一的代码格式化规则？
+- [ ] **[P0]** Git Hooks：是否配置了 Husky 和 lint-staged 进行提交前检查？
+- [ ] **[P0]** TypeScript 检查：是否添加了类型检查脚本？
+
+### 编辑器集成 [P1]
+- [ ] **[P1]** VS Code 设置：是否配置了推荐的编辑器设置和扩展？
+- [ ] **[P1]** EditorConfig：是否创建了通用编辑器配置？
+- [ ] **[P1]** 开发脚本：是否添加了便利的开发和检查脚本？
+
+### 可选优化 [P2]
+- [ ] **[P2]** Commitlint：是否配置了提交消息验证？
+- [ ] **[P2]** 依赖检查：是否添加了依赖更新检查脚本？

@@ -257,15 +257,35 @@ export default config;
 3. **团队熟悉度**：团队能够快速上手
 4. **维护成本**：长期维护和升级的复杂度
 
-## 检查清单
+## 🔍 检查清单
 
-项目启动时确认：
+在项目启动、技术选型决策或重要升级时，【必须】对照检查以下技术栈要素是否符合规范：
 
-- [ ] **核心框架**：React 18+ + TypeScript 5+ + Vite
-- [ ] **UI 系统**：Tailwind CSS + shadcn/ui
-- [ ] **状态管理**：根据项目规模选择合适方案
-- [ ] **数据获取**：TanStack Query 用于服务器状态
-- [ ] **表单处理**：React Hook Form + Zod 验证
-- [ ] **路由管理**：React Router 6+ 配置
-- [ ] **测试设置**：Vitest + Testing Library
-- [ ] **代码质量**：ESLint + Prettier 配置
+### 核心技术栈 [P0]
+- [ ] **[P0]** 框架与语言：项目是否基于 `React 18+` 和 `TypeScript 5+` 构建？
+- [ ] **[P0]** 构建工具：是否使用 `Vite 5+` 作为项目构建工具？
+- [ ] **[P0]** 运行时环境：后端或开发环境是否依赖 `Node.js 18+ LTS` 版本？
+
+### UI 与样式 [P0]
+- [ ] **[P0]** UI 组件库：是否以 `shadcn/ui` 作为基础 UI 组件库？
+- [ ] **[P0]** 样式方案：是否主要使用 `Tailwind CSS` 进行样式开发，并遵循 `styling-standards.mdc`？
+
+### 状态管理 [P0]
+- [ ] **[P0]** 状态管理方案：是否根据项目规模和复杂度，合理选择了状态管理方案（如 Zustand 推荐用于中大型项目，React Context 可用于小型或局部状态）？
+
+### 表单与数据校验 [P0]
+- [ ] **[P0]** 表单处理：是否使用 `React Hook Form` 进行表单状态管理和提交处理？
+- [ ] **[P0]** 数据校验：是否使用 `Zod` 定义数据结构和校验规则，并与 React Hook Form 集成 (`zodResolver`)？
+
+### 路由管理 [P0]
+- [ ] **[P0]** 路由方案：前端路由是否使用 `React Router 6+` 实现？
+
+### 数据获取与缓存 [P1]
+- [ ] **[P1]** 服务器状态管理（推荐）：对于与后端 API 的数据交互和缓存，是否考虑或使用了 `TanStack Query (React Query)`？
+
+### 测试与代码质量 [P1]
+- [ ] **[P1]** 测试框架（推荐）：是否配置了 `Vitest` 作为测试运行器和 `React Testing Library` 用于组件测试？（详细参考 `testing-standards.mdc`）
+- [ ] **[P1]** 代码规范工具：项目中是否已配置并启用了 `ESLint` 和 `Prettier` 以保证代码质量和风格一致性？
+
+### 环境配置 [P0]
+- [ ] **[P0]** 环境变量：项目是否使用了 `.env` 文件 (如 `.env.local`, `.env.production`) 来管理不同环境的配置（如 API 地址、应用名称），并通过 `import.meta.env` (Vite) 正确访问？

@@ -5,50 +5,20 @@ alwaysApply: false
 ---
 # TypeScript 规范
 
-## 代码质量要求 [P0]
+## 核心原则 [P0]
 
 【必须】确保代码质量：
-- **语法正确**：包含完整导入，无编译错误
-- **类型准确**：TypeScript 类型定义完整正确
-- **可独立运行**：代码示例必须可直接执行
-- **遵循最佳实践**：使用最新 TypeScript 特性和模式
+- **类型安全**：所有变量、函数参数和返回值必须定义类型
+- **优先使用 `interface`** 定义对象结构
+- **禁止使用 `enum`**，使用联合类型替代
+- **避免 `any`**，使用 `unknown` + 类型守卫
+
+## 基础类型定义 [P0]
+
+【必须】正确定义类型：
 
 ```tsx
-// ✅ 完整示例
-import { useState, useEffect } from 'react';
-
-interface User {
-  id: string;
-  name: string;
-}
-
-function UserComponent() {
-  const [users, setUsers] = useState<User[]>([]);
-  
-  useEffect(() => {
-    // 获取用户数据
-  }, []);
-  
-  return <div>{users.length} 个用户</div>;
-}
-
-// ❌ 错误示例
-function UserComponent() {
-  const [users, setUsers] = useState([]); // 缺少类型和导入
-  return <div>{users.length} 个用户</div>;
-}
-```
-
-## 类型定义 [P0]
-
-【必须】遵循：
-- 为所有变量、函数参数和返回值定义类型
-- **优先使用 `interface` 定义对象结构**
-- **禁止使用 `enum`，使用联合类型替代**
-- 使用 TypeScript 工具类型（`Partial<T>`, `Pick<T, K>` 等）
-
-```tsx
-// ✅ 正确 - interface 优先
+// ✅ 正确 - 基础类型定义
 interface User {
   id: string;
   name: string;
@@ -56,55 +26,64 @@ interface User {
   role: 'admin' | 'user' | 'guest';
 }
 
+// ✅ 正确 - 组件 Props
 interface UserCardProps {
   user: User;
   onEdit?: (user: User) => void;
   className?: string;
 }
 
-function UserCard({ user, onEdit, className }: UserCardProps) {
+export function UserCard({ user, onEdit, className }: UserCardProps) {
   return (
     <div className={className}>
       <h3>{user.name}</h3>
       <p>{user.email}</p>
       {onEdit && (
-        <button onClick={() => onEdit(user)}>
-          编辑
-        </button>
+        <button onClick={() => onEdit(user)}>编辑</button>
       )}
     </div>
   );
 }
 
-// ✅ 正确 - type 用于联合类型和工具类型
-type UserRole = 'admin' | 'user' | 'guest';
-type UserUpdateParams = Partial<Omit<User, 'id'>>;
-type Theme = 'light' | 'dark' | 'auto';
-
-function updateUser(id: string, params: UserUpdateParams): Promise<User> {
-  return fetch(`/api/users/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(params),
-  }).then(res => res.json());
-}
-
-// ❌ 错误 - 使用 enum
-enum UserRole {  // 应使用联合类型
-  Admin = 'admin',
-  User = 'user',
-}
-
-// ❌ 错误 - 未定义类型
-function updateUser(id, params) {
-  // 缺少类型定义
+// ❌ 错误 - 缺少类型定义
+function UserCard(props) {
+  return <div>{props.user.name}</div>;
 }
 ```
 
-## 基础泛型使用
+## 联合类型替代 enum [P0]
 
-【必须】合理使用泛型提高代码复用性：
+【必须】使用联合类型：
 
 ```tsx
+// ✅ 正确 - 联合类型
+type UserRole = 'admin' | 'user' | 'guest';
+type Theme = 'light' | 'dark' | 'auto';
+type Status = 'pending' | 'loading' | 'success' | 'error';
+
+// ✅ 正确 - 在组件中使用
+interface ButtonProps {
+  variant: 'primary' | 'secondary' | 'danger';
+  size: 'small' | 'medium' | 'large';
+  children: React.ReactNode;
+}
+
+// ❌ 错误 - 使用 enum
+enum UserRole {
+  Admin = 'admin',
+  User = 'user',
+}
+```
+
+## 基础工具类型 [P0]
+
+【必须】掌握常用工具类型：
+
+```tsx
+// ✅ 正确 - Partial 和 Omit
+type CreateUserRequest = Omit<User, 'id'>; // 创建时不需要 id
+type UpdateUserRequest = Partial<Pick<User, 'name' | 'email'>>; // 更新时可选
+
 // ✅ 正确 - API 响应类型
 interface ApiResponse<T> {
   data: T;
@@ -112,51 +91,22 @@ interface ApiResponse<T> {
   message: string;
 }
 
-// ✅ 正确 - 泛型 Hook
-function useApi<T>(url: string): {
-  data: T | null;
-  loading: boolean;
-  error: string | null;
-} {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch(url)
-      .then(res => res.json())
-      .then((result: ApiResponse<T>) => {
-        setData(result.data);
-        setLoading(false);
-      })
-      .catch(err => {
-        setError(err.message);
-        setLoading(false);
-      });
-  }, [url]);
-
-  return { data, loading, error };
-}
-
-// 使用示例
-const { data: users, loading, error } = useApi<User[]>('/api/users');
-
-// ✅ 正确 - 泛型约束
-interface Identifiable {
-  id: string;
-}
-
-function updateEntity<T extends Identifiable>(
-  entity: T,
-  updates: Partial<Omit<T, 'id'>>
-): T {
-  return { ...entity, ...updates };
+// ✅ 正确 - 函数类型
+async function updateUser(
+  id: string, 
+  params: UpdateUserRequest
+): Promise<ApiResponse<User>> {
+  const response = await fetch(`/api/users/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(params),
+  });
+  return response.json();
 }
 ```
 
-## 类型守卫
+## 类型守卫 [P0]
 
-【必须】使用类型守卫确保类型安全：
+【必须】安全处理未知类型：
 
 ```tsx
 // ✅ 正确 - 基础类型守卫
@@ -170,44 +120,36 @@ function isUser(value: unknown): value is User {
     value !== null &&
     'id' in value &&
     'name' in value &&
-    'email' in value &&
-    isString((value as User).id) &&
-    isString((value as User).name) &&
-    isString((value as User).email)
+    'email' in value
   );
 }
 
-// ✅ 正确 - 使用类型守卫
-function handleApiResponse(response: unknown) {
-  if (isUser(response)) {
-    // TypeScript 知道 response 是 User 类型
-    console.log(response.name);
-  } else if (Array.isArray(response) && response.every(isUser)) {
-    // TypeScript 知道 response 是 User[] 类型
-    response.forEach(user => console.log(user.name));
-  } else {
-    console.error('Invalid response format');
+// ✅ 正确 - 安全的 API 处理
+async function fetchUser(id: string): Promise<User> {
+  const response = await fetch(`/api/users/${id}`);
+  const data: unknown = await response.json();
+  
+  if (isUser(data)) {
+    return data;
   }
+  
+  throw new Error('Invalid user data');
 }
 
-// ✅ 正确 - 安全的空值检查
-function processUser(user: User | null) {
-  if (user) {
-    // TypeScript 知道 user 不为 null
-    return user.name.toUpperCase();
-  }
-  throw new Error('User not found');
+// ❌ 错误 - 使用 any
+function processData(data: any) {
+  return data.someProperty; // 类型不安全
 }
 
 // ❌ 错误 - 危险的非空断言
-function processUserUnsafely(user: User | null) {
-  return user!.name.toUpperCase(); // 可能抛出运行时错误
+function getUser(id: string) {
+  return users.find(u => u.id === id)!; // 可能抛出错误
 }
 ```
 
-## tsconfig.json 基础配置
+## tsconfig.json 配置 [P0]
 
-【必须】使用严格的 TypeScript 配置：
+【必须】使用严格配置：
 
 ```json
 {
@@ -248,146 +190,7 @@ function processUserUnsafely(user: User | null) {
 }
 ```
 
-## 常用工具类型 [P0]
-
-【必须】掌握常用工具类型：
-
-```tsx
-// ✅ 正确 - Partial 和 Required
-type CreateUserRequest = Omit<User, 'id'>; // 创建用户时不需要 id
-type UpdateUserRequest = Partial<Pick<User, 'name' | 'email'>>; // 更新时字段可选
-
-// ✅ 正确 - Pick 和 Omit
-type UserPublicInfo = Pick<User, 'id' | 'name'>; // 只选择公开字段
-type UserPrivateInfo = Omit<User, 'id'>; // 排除 id
-
-// ✅ 正确 - Record 类型
-type UsersByRole = Record<UserRole, User[]>; // 按角色分组的用户
-
-const userGroups: UsersByRole = {
-  admin: [],
-  user: [],
-  guest: [],
-};
-
-// ✅ 正确 - 联合类型和字面量类型
-type ButtonVariant = 'primary' | 'secondary' | 'danger';
-type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
-
-interface ButtonProps {
-  variant: ButtonVariant;
-  children: React.ReactNode;
-  onClick?: () => void;
-}
-```
-
-## 高级类型操作 [P1]
-
-【推荐】掌握高级类型技术：
-
-```tsx
-// ✅ 正确 - 条件类型
-type ApiResponse<T> = T extends string 
-  ? { message: T } 
-  : { data: T };
-
-// ✅ 正确 - 映射类型
-type Optional<T> = {
-  [K in keyof T]?: T[K];
-};
-
-type Readonly<T> = {
-  readonly [K in keyof T]: T[K];
-};
-
-// ✅ 正确 - 模板字面量类型
-type EventType = 'click' | 'hover' | 'focus';
-type EventHandler<T extends EventType> = `on${Capitalize<T>}`;
-
-type ButtonEvents = {
-  [K in EventHandler<EventType>]: () => void;
-};
-// 结果: { onClick: () => void; onHover: () => void; onFocus: () => void; }
-
-// ✅ 正确 - 递归类型
-interface TreeNode<T> {
-  value: T;
-  children?: TreeNode<T>[];
-}
-
-type DeepReadonly<T> = {
-  readonly [K in keyof T]: T[K] extends object 
-    ? DeepReadonly<T[K]> 
-    : T[K];
-};
-
-// ✅ 正确 - 索引访问类型
-interface Config {
-  database: {
-    host: string;
-    port: number;
-  };
-  api: {
-    baseUrl: string;
-    timeout: number;
-  };
-}
-
-type DatabaseConfig = Config['database']; // { host: string; port: number; }
-type ConfigKeys = keyof Config; // 'database' | 'api'
-
-// ✅ 正确 - 分布式条件类型
-type NonNullable<T> = T extends null | undefined ? never : T;
-type FilterStrings<T> = T extends string ? T : never;
-
-type Example = FilterStrings<string | number | boolean>; // string
-
-// ✅ 正确 - infer 关键字
-type ReturnType<T> = T extends (...args: any[]) => infer R ? R : never;
-type Parameters<T> = T extends (...args: infer P) => any ? P : never;
-
-function example(a: string, b: number): boolean {
-  return true;
-}
-
-type ExampleReturn = ReturnType<typeof example>; // boolean
-type ExampleParams = Parameters<typeof example>; // [string, number]
-
-// ✅ 正确 - 类型操作实用示例
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  age: number;
-  isActive: boolean;
-}
-
-// 提取字符串类型的键
-type StringKeys<T> = {
-  [K in keyof T]: T[K] extends string ? K : never;
-}[keyof T];
-
-type UserStringKeys = StringKeys<User>; // 'id' | 'name' | 'email'
-
-// 创建部分更新类型
-type UpdatePayload<T> = Partial<Omit<T, 'id'>> & { id: T['id'] };
-type UserUpdatePayload = UpdatePayload<User>; 
-// { id: string; name?: string; email?: string; age?: number; isActive?: boolean; }
-
-// 函数重载类型
-interface ApiClient {
-  get<T>(url: string): Promise<T>;
-  get<T>(url: string, config: RequestConfig): Promise<T>;
-}
-
-type OverloadedFunction = {
-  (x: string): string;
-  (x: number): number;
-  (x: boolean): boolean;
-};
-```
-
-## 类型导出和导入
+## 类型导入导出 [P0]
 
 【必须】正确导出和导入类型：
 
@@ -401,16 +204,6 @@ export interface User {
 
 export type UserRole = 'admin' | 'user' | 'guest';
 
-// services/userService.ts
-import type { User, UserRole } from '@/types/user';
-
-export function createUser(userData: Omit<User, 'id'>): Promise<User> {
-  return fetch('/api/users', {
-    method: 'POST',
-    body: JSON.stringify(userData),
-  }).then(res => res.json());
-}
-
 // components/UserCard.tsx
 import type { User } from '@/types/user';
 
@@ -422,52 +215,64 @@ interface UserCardProps {
 export function UserCard({ user, onUpdate }: UserCardProps) {
   // 组件实现
 }
+
+// services/userService.ts
+import type { User } from '@/types/user';
+
+export async function fetchUser(id: string): Promise<User> {
+  // API 调用实现
+}
 ```
 
-## 避免常见错误
+## React Hook 类型 [P0]
 
-【禁止】以下模式：
+【必须】正确定义 Hook 类型：
 
 ```tsx
-// ❌ 错误 - 使用 any
-function processData(data: any) {
-  return data.someProperty;
+// ✅ 正确 - useState 类型
+const [user, setUser] = useState<User | null>(null);
+const [loading, setLoading] = useState<boolean>(false);
+const [users, setUsers] = useState<User[]>([]);
+
+// ✅ 正确 - useEffect 依赖
+useEffect(() => {
+  fetchUser(userId).then(setUser);
+}, [userId]); // 明确依赖
+
+// ✅ 正确 - 自定义 Hook
+function useLocalStorage<T>(key: string, initialValue: T) {
+  const [value, setValue] = useState<T>(() => {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : initialValue;
+  });
+
+  const setStoredValue = (newValue: T) => {
+    setValue(newValue);
+    localStorage.setItem(key, JSON.stringify(newValue));
+  };
+
+  return [value, setStoredValue] as const;
 }
 
-// ✅ 正确 - 使用 unknown 和类型守卫
-function processData(data: unknown) {
-  if (typeof data === 'object' && data !== null && 'someProperty' in data) {
-    return (data as { someProperty: unknown }).someProperty;
-  }
-  throw new Error('Invalid data format');
-}
-
-// ❌ 错误 - 过度使用非空断言
-function getUser(id: string) {
-  return users.find(u => u.id === id)!; // 危险
-}
-
-// ✅ 正确 - 安全的错误处理
-function getUser(id: string): User {
-  const user = users.find(u => u.id === id);
-  if (!user) {
-    throw new Error(`User with id ${id} not found`);
-  }
-  return user;
-}
+// 使用示例
+const [theme, setTheme] = useLocalStorage<Theme>('theme', 'light');
 ```
 
-## 检查清单
+## 🔍 检查清单
 
-【必须】在提交前确认：
+在编写 TypeScript 代码时，【必须】确认：
 
-- [ ] **严格模式**：启用 strict TypeScript 配置
-- [ ] **类型覆盖**：所有函数和变量都有明确类型
-- [ ] **接口优先**：对象结构使用 interface，联合类型使用 type
-- [ ] **避免 enum**：使用联合类型替代枚举
-- [ ] **类型守卫**：复杂类型使用类型守卫验证
-- [ ] **工具类型**：合理使用 Partial、Pick、Omit 等
-- [ ] **类型导入**：使用 `import type` 导入纯类型
-- [ ] **避免 any**：使用 `unknown` 或具体类型
-- [ ] **泛型约束**：为泛型添加合理约束
-- [ ] **路径映射**：配置清晰的路径别名
+### 核心要求 [P0]
+- [ ] **[P0]** 严格模式：`tsconfig.json` 中是否启用了 `"strict": true`？
+- [ ] **[P0]** 类型定义：所有变量、函数参数、返回值是否都有类型定义？
+- [ ] **[P0]** interface 优先：是否优先使用 `interface` 定义对象结构？
+- [ ] **[P0]** 避免 enum：是否使用联合类型替代 `enum`？
+- [ ] **[P0]** 避免 any：是否避免使用 `any`，使用 `unknown` + 类型守卫？
+- [ ] **[P0]** 类型守卫：处理未知类型时是否使用了类型守卫？
+- [ ] **[P0]** 工具类型：是否合理使用 `Partial`, `Omit`, `Pick` 等工具类型？
+- [ ] **[P0]** React 类型：组件 Props 和 Hook 是否有正确的类型定义？
+
+### 推荐实践 [P1]
+- [ ] **[P1]** 路径别名：是否配置并使用了路径别名 (`@/*`)？
+- [ ] **[P1]** 类型导入：是否使用 `import type` 导入类型？
+- [ ] **[P1]** 泛型使用：是否在适当场景使用了泛型？

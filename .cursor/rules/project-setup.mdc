@@ -1,0 +1,403 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# 项目配置规范
+
+## 核心技术栈 [P0]
+
+【必须】使用以下技术栈：
+- **框架**: React 18+ + TypeScript 5+
+- **构建工具**: Vite 5+
+- **包管理**: pnpm（推荐）> yarn > npm
+- **样式**: Tailwind CSS + shadcn/ui
+- **状态管理**: Zustand（中大型项目）/ Context（小型项目）
+
+## package.json 配置 [P0]
+
+【必须】基础 package.json 配置：
+
+```json
+{
+  "name": "my-react-app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext ts,tsx --fix",
+    "format": "prettier --write .",
+    "type-check": "tsc --noEmit",
+    "prepare": "husky install"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.8.0",
+    "zustand": "^4.3.0",
+    "zod": "^3.20.0",
+    "react-hook-form": "^7.43.0",
+    "@hookform/resolvers": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.28",
+    "@types/react-dom": "^18.0.11",
+    "@typescript-eslint/eslint-plugin": "^5.57.0",
+    "@typescript-eslint/parser": "^5.57.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "eslint": "^8.38.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.3.4",
+    "prettier": "^2.8.7",
+    "typescript": "^5.0.2",
+    "vite": "^4.3.0",
+    "husky": "^8.0.0",
+    "lint-staged": "^13.2.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  }
+}
+```
+
+## tsconfig.json 配置 [P0]
+
+【必须】完整 TypeScript 配置：
+
+```json
+{
+  "compilerOptions": {
+    // 基础配置
+    "target": "ES2022",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    
+    // 严格类型检查
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    
+    // 路径映射
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@/components/*": ["./src/components/*"],
+      "@/hooks/*": ["./src/hooks/*"],
+      "@/utils/*": ["./src/utils/*"],
+      "@/types/*": ["./src/types/*"],
+      "@/stores/*": ["./src/stores/*"],
+      "@/services/*": ["./src/services/*"]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "vite.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ]
+}
+```
+
+## vite.config.ts 配置 [P0]
+
+【必须】Vite 构建配置：
+
+```typescript
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+      '@/components': path.resolve(__dirname, './src/components'),
+      '@/hooks': path.resolve(__dirname, './src/hooks'),
+      '@/utils': path.resolve(__dirname, './src/utils'),
+      '@/types': path.resolve(__dirname, './src/types'),
+      '@/stores': path.resolve(__dirname, './src/stores'),
+      '@/services': path.resolve(__dirname, './src/services'),
+    },
+  },
+  server: {
+    port: 3000,
+    open: true,
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+        },
+      },
+    },
+  },
+});
+```
+
+## 项目目录结构 [P0]
+
+【必须】标准目录结构：
+
+```
+src/
+├── components/          # 通用组件
+│   ├── ui/             # 基础 UI 组件 (shadcn/ui)
+│   ├── forms/          # 表单组件
+│   └── layout/         # 布局组件
+├── pages/              # 页面组件
+├── hooks/              # 自定义 Hooks
+├── services/           # API 服务
+├── stores/             # 状态管理 (Zustand)
+├── types/              # TypeScript 类型定义
+├── utils/              # 工具函数
+├── styles/             # 样式文件
+├── App.tsx             # 应用根组件
+├── main.tsx            # 应用入口
+└── vite-env.d.ts       # Vite 类型声明
+
+public/                 # 静态资源
+├── favicon.ico
+└── index.html
+
+.vscode/                # VS Code 配置
+├── settings.json
+└── extensions.json
+```
+
+## 环境变量配置 [P0]
+
+【必须】环境变量管理：
+
+```bash
+# .env.local (开发环境)
+VITE_API_URL=http://localhost:3001/api
+VITE_APP_NAME=My React App
+VITE_ENV=development
+
+# .env.production (生产环境)
+VITE_API_URL=https://api.myapp.com
+VITE_APP_NAME=My React App
+VITE_ENV=production
+
+# .env.example (示例文件，提交到 Git)
+VITE_API_URL=
+VITE_APP_NAME=
+VITE_ENV=
+```
+
+```typescript
+// src/config/env.ts
+interface Config {
+  apiUrl: string;
+  appName: string;
+  env: string;
+  isDev: boolean;
+  isProd: boolean;
+}
+
+export const config: Config = {
+  apiUrl: import.meta.env.VITE_API_URL || '',
+  appName: import.meta.env.VITE_APP_NAME || 'App',
+  env: import.meta.env.VITE_ENV || 'development',
+  isDev: import.meta.env.DEV,
+  isProd: import.meta.env.PROD,
+};
+```
+
+## Tailwind CSS 配置 [P0]
+
+【必须】样式系统配置：
+
+```javascript
+// tailwind.config.js
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: ["class"],
+  content: [
+    './pages/**/*.{ts,tsx}',
+    './components/**/*.{ts,tsx}',
+    './app/**/*.{ts,tsx}',
+    './src/**/*.{ts,tsx}',
+  ],
+  theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
+    extend: {
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      keyframes: {
+        "accordion-down": {
+          from: { height: 0 },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: 0 },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+      },
+    },
+  },
+  plugins: [require("tailwindcss-animate")],
+}
+```
+
+```css
+/* src/styles/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+```
+
+## 🔍 检查清单
+
+在项目初始化时，【必须】确认以下配置：
+
+### 基础配置 [P0]
+- [ ] **[P0]** package.json：是否包含了推荐的依赖版本和脚本命令？
+- [ ] **[P0]** TypeScript：`tsconfig.json` 是否启用了严格模式和路径别名？
+- [ ] **[P0]** Vite 配置：是否正确配置了路径别名和构建选项？
+- [ ] **[P0]** 目录结构：是否按照标准结构组织项目文件？
+- [ ] **[P0]** 环境变量：是否创建了环境变量文件和配置？
+- [ ] **[P0]** Tailwind CSS：是否正确配置了样式系统？
+
+### 开发工具 [P1]
+- [ ] **[P1]** 代码质量：ESLint 和 Prettier 是否正确配置？
+- [ ] **[P1]** Git Hooks：Husky 和 lint-staged 是否已设置？
+- [ ] **[P1]** VS Code：是否配置了推荐的编辑器设置？

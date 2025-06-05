@@ -268,119 +268,34 @@ function UserCard({ user }: { user: User }) {
 </main>
 
 // ✅ 正确 - 复杂响应式布局示例
-<div className="min-h-screen bg-background">
-  {/* 头部导航 */}
-  <header className="
-    sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur
-    supports-[backdrop-filter]:bg-background/60
-  ">
-    <div className="container flex h-14 items-center">
-      <div className="mr-4 hidden md:flex">
-        <a className="mr-6 flex items-center space-x-2">
-          <span className="hidden font-bold sm:inline-block">Brand</span>
-        </a>
-      </div>
-      
-      {/* 移动端菜单按钮 */}
-      <button className="
-        inline-flex items-center justify-center rounded-md p-2
-        md:hidden
-      ">
-        <Menu className="h-4 w-4" />
-      </button>
-      
-      {/* 桌面端导航 */}
-      <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
-        <a href="#" className="transition-colors hover:text-foreground/80">首页</a>
-        <a href="#" className="transition-colors hover:text-foreground/80">产品</a>
-        <a href="#" className="transition-colors hover:text-foreground/80">关于</a>
-      </nav>
-    </div>
+<div className="min-h-screen flex flex-col bg-muted/40">
+  {/* Header */}
+  <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+    {/* Header content */}
   </header>
 
-  {/* 主要内容区域 */}
-  <div className="container mx-auto px-4 py-8">
-    <div className="
-      grid grid-cols-1 gap-6
-      lg:grid-cols-4 lg:gap-8
-    ">
-      {/* 侧边栏 */}
-      <aside className="
-        order-2 lg:order-1 lg:col-span-1
-        space-y-4
-      ">
-        <div className="sticky top-20">
-          <h3 className="font-semibold mb-4">筛选</h3>
-          <div className="space-y-3">
-            {/* 筛选选项 */}
-          </div>
-        </div>
+  <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
+    {/* Main content area with potential sidebar and right aside */}
+    <div className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8 lg:grid-cols-3 xl:grid-cols-3">
+      {/* Left Sidebar (optional or primary navigation for larger screens) */}
+      <aside className="hidden lg:col-span-1 lg:block sticky top-16 self-start">
+        {/* Sidebar navigation or content */}
       </aside>
 
-      {/* 主内容 */}
-      <main className="
-        order-1 lg:order-2 lg:col-span-3
-      ">
-        {/* 响应式卡片网格 */}
-        <div className="
-          grid grid-cols-1 gap-4
-          sm:grid-cols-2 
-          lg:grid-cols-2
-          xl:grid-cols-3
-        ">
-          {products.map(product => (
-            <Card key={product.id} className="
-              overflow-hidden transition-shadow
-              hover:shadow-lg
-            ">
-              <div className="aspect-square relative overflow-hidden">
-                <img 
-                  src={product.image} 
-                  alt={product.name}
-                  className="object-cover w-full h-full"
-                />
-              </div>
-              <CardContent className="p-4">
-                <h3 className="font-semibold line-clamp-2 mb-2">
-                  {product.name}
-                </h3>
-                <p className="text-muted-foreground text-sm line-clamp-3 mb-4">
-                  {product.description}
-                </p>
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-lg">
-                    ¥{product.price}
-                  </span>
-                  <Button size="sm">加入购物车</Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+      {/* Main Content */}
+      <main className="grid auto-rows-max items-start gap-4 md:gap-8 lg:col-span-2">
+        {/* Main page content, e.g., cards, forms, tables */}
+        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+          {/* Example cards */}
         </div>
       </main>
+
+      {/* Right Aside (optional, for contextual info or actions) */}
+      <aside className="hidden xl:col-span-1 xl:block sticky top-16 self-start">
+        {/* Right aside content */}
+      </aside>
     </div>
   </div>
-
-  {/* 页脚 */}
-  <footer className="
-    border-t bg-muted/50 py-8 mt-12
-  ">
-    <div className="container mx-auto px-4">
-      <div className="
-        grid grid-cols-2 gap-8
-        md:grid-cols-4
-      ">
-        <div>
-          <h4 className="font-semibold mb-4">公司</h4>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            <li><a href="#" className="hover:text-foreground">关于我们</a></li>
-            <li><a href="#" className="hover:text-foreground">联系方式</a></li>
-          </ul>
-        </div>
-        {/* 更多页脚列 */}
-      </div>
-    </div>
-  </footer>
 </div>
 ```
 
@@ -420,16 +335,31 @@ function UserCard({ user }: { user: User }) {
 </form>
 ```
 
-## 检查清单
+## 🔍 检查清单
 
-开发时确认：
+在编写和审查样式相关代码时，请对照以下检查项：
 
-- [ ] **Tailwind 优先**：优先使用 Tailwind 原子类
-- [ ] **移动优先**：从小屏开始设计，逐步增强
-- [ ] **shadcn/ui**：使用 shadcn/ui 组件作为基础
-- [ ] **设计系统**：使用统一的颜色、字体、间距
-- [ ] **暗模式**：支持明暗主题切换
-- [ ] **可访问性**：确保焦点管理和语义化标记
-- [ ] **状态一致**：统一的状态表示和变体
-- [ ] **响应式**：在所有设备上正常显示
-- [ ] **性能**：合理使用动画和过渡效果
+### 核心原则与技术选型 [P0]
+- [ ] **[P0]** Tailwind CSS 优先：是否主要使用 Tailwind CSS 的原子类来构建样式，避免了自定义 CSS 或内联样式（除非必要且已封装）？
+- [ ] **[P0]** shadcn/ui 基础：是否基于 shadcn/ui 组件库进行 UI 构建，并在此基础上进行定制和扩展？
+- [ ] **[P0]** 移动优先响应式设计：所有样式和布局是否严格遵循移动优先原则（即默认样式针对小屏幕，然后通过 `sm:`, `md:`, `lg:`, `xl:` 等断点逐步增强大屏幕样式）？
+- [ ] **[P0]** 响应式布局实现：是否有效使用了 Tailwind 的响应式变体（如 `md:flex-row`）和网格系统 (`grid`, `grid-cols-*`) 来创建适应不同屏幕尺寸的布局？
+
+### 设计系统与一致性 [P1]
+- [ ] **[P1]** 设计令牌：是否使用了项目 `tailwind.config.js` 中定义的设计令牌（如颜色 `bg-primary`, `text-foreground`；间距 `gap-4`, `p-6`；字体 `text-lg`, `font-semibold`）而非魔术数字或硬编码值？
+- [ ] **[P1]** 组件状态与变体：组件的各种状态（如 `disabled`, `hover`, `focus`, 加载中）和变体（如 `variant='outline'`）是否通过 Tailwind 类或 shadcn/ui 的 props 清晰、一致地表达？
+- [ ] **[P1]** 暗模式支持：组件和页面是否能正确响应暗模式切换，使用了设计系统中定义的暗模式颜色变量（如 `dark:bg-gray-900` 或通过 CSS 变量）？
+
+### 可访问性 (A11y) [P1]
+- [ ] **[P1]** 焦点可见性：所有可交互元素（按钮、链接、输入框等）在获得焦点时是否有清晰的视觉指示（如 `focus:ring-2`）？
+- [ ] **[P1]** 语义化 HTML：是否使用了正确的 HTML5 语义化标签（如 `<nav>`, `<main>`, `<aside>`, `<article>`, `<button>`）来构建页面结构？
+- [ ] **[P1]** ARIA 属性：是否在必要时（如自定义组件、动态内容更新）使用了恰当的 ARIA 属性（如 `aria-label`, `aria-expanded`, `role`）来增强屏幕阅读器的可访问性？
+- [ ] **[P1]** 颜色对比度：文本内容与其背景色之间是否有足够的颜色对比度，符合 WCAG AA 级标准？
+
+### 动画与过渡 [P2]
+- [ ] **[P2]** 过渡效果：UI 中的过渡和动画效果是否平滑、一致，并使用了 Tailwind 的过渡工具类（如 `transition-all`, `duration-200`, `ease-in-out`）？
+- [ ] **[P2]** 尊重用户偏好：动画效果是否考虑了 `prefers-reduced-motion` 用户偏好，对希望减少动画的用户提供了降级或无动画版本 (`motion-safe:`, `motion-reduce:`)？
+
+### 代码组织与维护 [P2]
+- [ ] **[P2]** Tailwind 类名排序：是否使用了 Prettier 插件 (如 `prettier-plugin-tailwindcss`) 自动排序 Tailwind 类名以提高可读性和一致性？
+- [ ] **[P2]** `@apply` 使用限制：是否避免了过度使用 `@apply`，仅在确实需要封装一组常用原子类且无法通过组件化解决时才谨慎使用？
