@@ -1,7 +1,7 @@
 ---
 description: npm 包安装规范
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 # npm 包安装规范
 
