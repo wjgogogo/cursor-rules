@@ -1,0 +1,333 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# JSON 设计系统配置规范
+
+## 目标
+
+【必须】创建标准化的 JSON 配置文件 `designSystem.json`，从界面截图中提取设计元素，为 AI 提供设计上下文，确保设计风格的一致性复制。
+
+## JSON 设计配置结构
+
+【必须】遵循以下 JSON 架构：
+
+```json
+{
+  "designSystem": {
+    "metadata": {
+      "name": "设计系统名称",
+      "version": "1.0.0",
+      "description": "设计系统描述",
+      "extractedFrom": "screenshot_source_type",
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    "colorPalette": {
+      "primary": {
+        "main": "#color_hex",
+        "light": "#color_hex",
+        "dark": "#color_hex",
+        "contrast": "#color_hex"
+      },
+      "secondary": {
+        "main": "#color_hex",
+        "light": "#color_hex", 
+        "dark": "#color_hex",
+        "contrast": "#color_hex"
+      },
+      "neutral": {
+        "background": "#color_hex",
+        "surface": "#color_hex",
+        "border": "#color_hex",
+        "text": {
+          "primary": "#color_hex",
+          "secondary": "#color_hex",
+          "disabled": "#color_hex"
+        }
+      },
+      "semantic": {
+        "success": "#color_hex",
+        "warning": "#color_hex",
+        "error": "#color_hex",
+        "info": "#color_hex"
+      }
+    },
+    "typography": {
+      "fontFamilies": {
+        "primary": "font_family_name",
+        "secondary": "font_family_name",
+        "monospace": "font_family_name"
+      },
+      "fontSizes": {
+        "xs": "12px",
+        "sm": "14px",
+        "base": "16px",
+        "lg": "18px",
+        "xl": "20px",
+        "2xl": "24px",
+        "3xl": "30px",
+        "4xl": "36px"
+      },
+      "fontWeights": {
+        "light": 300,
+        "normal": 400,
+        "medium": 500,
+        "semibold": 600,
+        "bold": 700
+      },
+      "lineHeights": {
+        "tight": 1.2,
+        "normal": 1.5,
+        "relaxed": 1.8
+      }
+    },
+    "spacing": {
+      "base": 4,
+      "scale": [0, 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 80, 96],
+      "components": {
+        "padding": {
+          "small": "8px",
+          "medium": "16px",
+          "large": "24px"
+        },
+        "margin": {
+          "small": "8px",
+          "medium": "16px", 
+          "large": "24px"
+        },
+        "gap": {
+          "small": "8px",
+          "medium": "16px",
+          "large": "24px"
+        }
+      }
+    },
+    "borderRadius": {
+      "none": "0px",
+      "small": "4px",
+      "medium": "8px",
+      "large": "12px",
+      "full": "9999px"
+    },
+    "shadows": {
+      "small": "0 1px 2px rgba(0, 0, 0, 0.05)",
+      "medium": "0 4px 6px rgba(0, 0, 0, 0.1)",
+      "large": "0 10px 15px rgba(0, 0, 0, 0.1)",
+      "xl": "0 20px 25px rgba(0, 0, 0, 0.1)"
+    },
+    "components": {
+      "button": {
+        "variants": {
+          "primary": {
+            "backgroundColor": "使用 colorPalette.primary.main",
+            "color": "使用 colorPalette.primary.contrast",
+            "padding": "使用 spacing.components.padding.medium",
+            "borderRadius": "使用 borderRadius.medium",
+            "fontSize": "使用 typography.fontSizes.base",
+            "fontWeight": "使用 typography.fontWeights.medium"
+          },
+          "secondary": {
+            "backgroundColor": "transparent",
+            "color": "使用 colorPalette.primary.main",
+            "border": "1px solid 使用 colorPalette.primary.main",
+            "padding": "使用 spacing.components.padding.medium",
+            "borderRadius": "使用 borderRadius.medium"
+          }
+        },
+        "states": {
+          "hover": "opacity: 0.9",
+          "active": "opacity: 0.8",
+          "disabled": "opacity: 0.5"
+        }
+      },
+      "input": {
+        "base": {
+          "backgroundColor": "使用 colorPalette.neutral.surface",
+          "border": "1px solid 使用 colorPalette.neutral.border",
+          "borderRadius": "使用 borderRadius.medium",
+          "padding": "使用 spacing.components.padding.medium",
+          "fontSize": "使用 typography.fontSizes.base"
+        },
+        "states": {
+          "focus": "border-color: 使用 colorPalette.primary.main",
+          "error": "border-color: 使用 colorPalette.semantic.error"
+        }
+      },
+      "card": {
+        "base": {
+          "backgroundColor": "使用 colorPalette.neutral.surface",
+          "borderRadius": "使用 borderRadius.large",
+          "padding": "使用 spacing.components.padding.large",
+          "boxShadow": "使用 shadows.medium"
+        }
+      }
+    },
+    "layout": {
+      "breakpoints": {
+        "mobile": "768px",
+        "tablet": "1024px",
+        "desktop": "1200px"
+      },
+      "container": {
+        "maxWidth": "1200px",
+        "padding": "使用 spacing.components.padding.large"
+      },
+      "grid": {
+        "columns": 12,
+        "gap": "使用 spacing.components.gap.medium"
+      }
+    },
+    "animation": {
+      "durations": {
+        "fast": "150ms",
+        "normal": "300ms",
+        "slow": "500ms"
+      },
+      "easings": {
+        "linear": "linear",
+        "easeIn": "ease-in",
+        "easeOut": "ease-out",
+        "easeInOut": "ease-in-out"
+      }
+    }
+  }
+}
+```
+
+## 从截图提取设计信息的方法
+
+【必须】遵循以下提取原则：
+
+### 颜色提取
+- 识别主要品牌色（按钮、链接、重点元素）
+- 提取背景色、文字色、边框色
+- 记录语义化颜色（成功、警告、错误状态）
+- 避免记录具体图片内容，专注于界面色彩
+
+### 排版分析
+- 观察标题、正文、说明文字的字体大小层级
+- 识别字体粗细变化（normal、medium、bold）
+- 分析行高和字间距规律
+- 记录字体族（无衬线、等宽等）
+
+### 间距规律
+- 测量组件间距、内边距、外边距
+- 识别间距的递增规律（如 4px 的倍数）
+- 观察不同层级内容的间距差异
+
+### 组件样式
+- 按钮：形状、圆角、阴影、状态变化
+- 输入框：边框样式、焦点状态、错误状态
+- 卡片：圆角、阴影、背景、边框
+- 导航：布局方式、选中状态、分隔线
+
+### 布局模式
+- 栅格系统：列数、间距
+- 响应式断点
+- 容器最大宽度
+- 对齐方式
+
+## 使用规范
+
+【必须】按以下步骤使用：
+
+1. **分析阶段**：仔细观察截图中的设计模式，不记录具体内容
+2. **提取阶段**：按 JSON 结构逐项提取设计元素
+3. **标准化阶段**：将提取的值标准化为可复用的设计 token
+4. **验证阶段**：确保 JSON 配置能够复现原始设计风格
+
+### 示例提取流程
+
+```json
+{
+  "extractionNotes": {
+    "colorObservations": "主按钮使用蓝色系，辅助按钮为白色边框，背景为浅灰色",
+    "typographyObservations": "标题使用较粗字重，正文为常规字重，整体字体偏现代无衬线",
+    "spacingObservations": "组件间距较为紧凑，使用 16px 基础间距的倍数",
+    "componentObservations": "按钮圆角适中，卡片有轻微阴影，整体风格简洁现代"
+  }
+}
+```
+
+## AI 代码生成指导原则
+
+【必须】将 JSON 配置作为设计指导文档使用，而非直接复制到代码中：
+
+### 设计参考指导
+JSON 配置应当作为设计规范和参考文档，指导 AI 生成符合设计系统的代码：
+
+```tsx
+// ✅ 正确 - 根据 JSON 设计规范生成组件
+// 参考 JSON 中的 colorPalette.primary.main 和 typography.fontSizes.base
+const Button = ({ variant = 'primary', children, ...props }) => {
+  const primaryStyles = cn(
+    "bg-blue-600 text-white px-4 py-2 rounded-md font-medium text-base",
+    "hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50",
+    variant === 'secondary' && "bg-transparent text-blue-600 border border-blue-600"
+  );
+  
+  return (
+    <button className={primaryStyles} {...props}>
+      {children}
+    </button>
+  );
+};
+
+// ✅ 正确 - 根据 JSON 设计规范生成输入框
+// 参考 JSON 中的 spacing.components.padding 和 borderRadius.medium
+const Input = ({ error, ...props }) => {
+  const inputStyles = cn(
+    "bg-white border border-gray-300 rounded-md px-4 py-2 text-base",
+    "focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600",
+    error && "border-red-500 focus:border-red-500 focus:ring-red-500"
+  );
+  
+  return <input className={inputStyles} {...props} />;
+};
+```
+
+### JSON 配置使用方式
+1. **颜色指导**：根据 `colorPalette` 选择对应的 Tailwind 颜色类或 CSS 颜色值
+2. **字体指导**：根据 `typography` 选择合适的字体大小、字重和行高
+3. **间距指导**：根据 `spacing` 应用一致的内边距、外边距和间隙
+4. **组件指导**：根据 `components` 定义实现组件的基础样式和状态变化
+5. **布局指导**：根据 `layout` 设置响应式断点和栅格系统
+
+### 设计一致性检查点
+AI 在生成代码时应确保：
+- 颜色使用符合 JSON 调色板的定义和色彩层级
+- 字体大小遵循 JSON 中定义的字体层级系统
+- 间距使用符合 JSON 中的间距比例和规律
+- 组件样式体现 JSON 中定义的设计 token 和状态变化
+- 布局响应式行为符合 JSON 中的断点设置
+
+### 代码生成提示词
+当需要 AI 根据设计系统生成代码时，应提供如下指导：
+"请根据提供的 JSON 设计系统配置，生成符合以下设计规范的组件：[具体要求]。确保颜色、字体、间距和组件样式与设计系统保持一致。"
+
+## 🔍 检查清单
+
+### JSON 设计配置创建检查
+在创建 JSON 设计系统配置时，【必须】确认：
+
+- [ ] **[P0]** JSON 结构完整性：是否包含了 metadata、colorPalette、typography、spacing、components 等核心部分？
+- [ ] **[P0]** 颜色系统：是否定义了主色、辅助色、中性色和语义色，并提供了足够的色彩变化（light、dark、contrast）？
+- [ ] **[P0]** 排版系统：是否定义了字体族、字体大小、字重和行高的完整层级？
+- [ ] **[P0]** 间距系统：是否建立了基于基础单位的间距比例系统？
+- [ ] **[P0]** 组件规范：是否为主要 UI 组件（按钮、输入框、卡片等）定义了基础样式和状态变化？
+- [ ] **[P0]** 布局系统：是否定义了响应式断点和栅格系统？
+- [ ] **[P1]** 提取准确性：从截图提取的设计元素是否准确反映了原始设计的视觉特征？
+- [ ] **[P1]** 标准化程度：提取的设计值是否已标准化为可复用的设计 token？
+
+### AI 代码生成指导检查
+在使用 JSON 配置指导 AI 生成代码时，【必须】确认：
+
+- [ ] **[P0]** 指导文档提供：是否向 AI 提供了完整的 JSON 设计系统配置作为参考？
+- [ ] **[P0]** 设计规范遵循：生成的代码是否遵循了 JSON 配置中定义的颜色、字体、间距规范？
+- [ ] **[P0]** 组件一致性：生成的组件样式是否与 JSON 配置中的组件定义保持一致？
+- [ ] **[P0]** 响应式实现：生成的布局代码是否符合 JSON 配置中的断点和栅格系统？
+- [ ] **[P1]** 状态变化：交互组件（按钮、输入框等）是否实现了 JSON 配置中定义的状态变化效果？
+- [ ] **[P1]** 语义化颜色：错误、成功、警告等状态是否使用了 JSON 配置中定义的语义化颜色？
+- [ ] **[P1]** 设计一致性验证：生成的 UI 组件是否在视觉上与原始设计截图保持一致？
+- [ ] **[P2]** 代码质量：生成的代码是否易于维护，并符合项目的技术栈要求（如 Tailwind CSS、React 等）？
