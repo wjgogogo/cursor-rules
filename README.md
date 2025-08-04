@@ -4,7 +4,7 @@
 
 ## 项目简介
 
-本项目提供了一套核心开发规范，涵盖代码质量、命名约定、技术栈选型、性能优化、安全防护、设计系统等方面。这些规则旨在提高代码质量和开发效率，确保项目的一致性和可维护性。
+本项目提供了一套核心开发规范，涵盖代码质量、命名约定、技术栈选型、性能优化、安全防护、设计系统、可视化绘图等方面。这些规则旨在提高代码质量和开发效率，确保项目的一致性和可维护性。
 
 ## 规则概览
 
@@ -36,7 +36,10 @@
 ### 🤖 AI 辅助开发
 - **[Context7 MCP 集成规范](/.cursor/rules/context7.mdc)** - 第三方库文档获取流程
 - **[LLM 严格模式规则](/.cursor/rules/llm.mdc)** - AI 编程助手的工作模式约束
-- **[JSON 设计系统配置规范](/.cursor/rules/json-design-system.mdc)** - 从截图提取设计元素，生成标准化设计系统
+- **[设计系统配置规范](/.cursor/rules/design-system.mdc)** - 从截图提取设计元素，生成标准化设计系统
+
+### 🎨 可视化与文档
+- **[Excalidraw 绘图语法规范](/excalidraw-grammar.md)** - Excalidraw JSON 格式详解、元素类型、样式配置与 Mermaid 对比
 
 ## 使用方法
 
@@ -55,7 +58,8 @@
 @security-standards 检查安全漏洞
 @performance-optimization 优化页面性能
 @api-design 设计 RESTful API
-@json-design-system 根据截图生成设计系统
+@design-system 根据截图生成设计系统
+@excalidraw-grammar 生成 Excalidraw 绘图或优化图表结构
 ```
 
 ## 核心规范说明

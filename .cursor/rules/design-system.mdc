@@ -3,7 +3,7 @@ description:
 globs: 
 alwaysApply: false
 ---
-# JSON 设计系统配置规范
+# 设计系统配置规范
 
 ## 目标
 
